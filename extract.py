@@ -1,10 +1,12 @@
 """
 Extract module for retrieving data from CMS API.
-Uses the new POST API with conditions.
+Uses the POST API with conditions to fetch data for multiple filter combinations.
+Supports dynamic filters - automatically handles any filter keys and skips empty values.
 """
 
 import logging
 from typing import List, Dict, Any
+from itertools import product
 
 import requests
 
@@ -17,149 +19,202 @@ class CmsDataExtractor:
 
     def __init__(self, config: Config):
         self.config = config
-        # API endpoint
         self.base_url = config.base_url
-        self.total_count = None
+        self.total_records_fetched = 0
 
-    def build_conditions(self) -> List[Dict[str, Any]]:
-        """Build filter conditions for the API."""
-        conditions = []
-
-        # Add state filter
-        # Only add first state as single filter for now
-        if self.config.STATES:
-            conditions.append({
-                "resource": "t",
-                "property": "state",
-                "value": self.config.STATES[0],  # Start with just NY
-                "operator": "="
-            })
-
-        # Add specialty filter - INTERNAL MEDICINE OR ANESTHESIOLOGY
-        # Only add first specialty for now
-        if self.config.SPECIALTIES:
-            conditions.append({
-                "resource": "t",
-                "property": "pri_spec",
-                "value": self.config.SPECIALTIES[0],  # Start with just INTERNAL MEDICINE
-                "operator": "="
-            })
-
-        return conditions
-
-    def fetch_batch(self, offset: int = 0) -> List[Dict[str, Any]]:
+    def build_filter_combinations(self) -> List[Dict[str, Any]]:
         """
-        Fetch a batch of records from the API.
-
-        Args:
-            offset: Record offset for pagination
+        Generate all combinations of filter values.
+        Automatically skips empty/None values and removes empty filters.
 
         Returns:
-            List of records from API
+            List of filter dictionaries, one for each combination
         """
-        conditions = self.build_conditions()
+        # Clean filters - remove empty values
+        clean_filters = {}
+        for key, values in self.config.FILTERS.items():
+            # Filter out empty strings and None values
+            non_empty_values = [v for v in values if v and str(v).strip()]
+            if non_empty_values:
+                clean_filters[key] = non_empty_values
+                logger.debug(f"Filter '{key}': {non_empty_values}")
+            else:
+                logger.debug(f"Filter '{key}': skipped (empty values)")
 
-        payload = {
-            "conditions": conditions,
-            "limit": self.config.BATCH_SIZE,
-            "offset": offset
-        }
+        if not clean_filters:
+            logger.warning("No valid filters found after removing empty values. Will fetch all data.")
+            return [{}]  # Return empty dict if no filters
 
-        try:
-            logger.debug(f"Fetching batch at offset {offset}")
-            logger.debug(f"Payload: {payload}")
+        # Generate all combinations using itertools.product
+        filter_keys = list(clean_filters.keys())
+        filter_values_list = [clean_filters[key] for key in filter_keys]
 
-            response = requests.post(
-                self.base_url,
-                json=payload,
-                timeout=60,
-                headers={"Content-Type": "application/json"}
-            )
-            response.raise_for_status()
+        combinations = []
+        for values_combo in product(*filter_values_list):
+            combo_dict = {key: value for key, value in zip(filter_keys, values_combo)}
+            combinations.append(combo_dict)
 
-            result = response.json()
-            logger.debug(f"API response keys: {result.keys() if isinstance(result, dict) else 'list'}")
+        return combinations
 
-            data = result["results"]
+    def build_conditions(self, filter_dict: Dict[str, str]) -> List[Dict[str, Any]]:
+        """
+        Build API conditions from a filter dictionary.
 
-            # Extract total count from first batch response
-            if self.total_count is None and "count" in result:
-                self.total_count = result["count"]
-                if self.config.MAX_RECORDS:
-                    logger.info(f"API total count: {self.total_count} | Limit: {self.config.MAX_RECORDS}")
-                else:
-                    logger.info(f"API total count available: {self.total_count}")
+        Args:
+            filter_dict: Dictionary of {property_name: value}
 
-            logger.info(f"Fetched {len(data)} records at offset {offset}")
-            return data
-
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"API HTTP error at offset {offset}: {e.response.status_code}")
-            logger.error(f"Response: {e.response.text[:500]}")
-            raise
-        except Exception as e:
-            logger.error(f"API request failed at offset {offset}: {str(e)}")
-            raise
+        Returns:
+            List of condition objects for the API
+        """
+        conditions = []
+        for property_name, value in filter_dict.items():
+            conditions.append({
+                "resource": "t",
+                "property": property_name,
+                "value": value,
+                "operator": "="
+            })
+        return conditions
 
     def fetch_all_data(self) -> List[Dict[str, Any]]:
         """
-        Fetch all data from the API using pagination.
+        Fetch all data for all filter combinations.
 
         Returns:
-            Complete list of all records matching filters
+            Complete list of all records matching all filter combinations
         """
         all_records = []
-        offset = 0
-        batch_count = 0
+        filter_combinations = self.build_filter_combinations()
+        total_combinations = len(filter_combinations)
 
-        while True:
-            batch = self.fetch_batch(offset)
+        logger.info(f"Starting extraction for {total_combinations} filter combinations")
+        logger.info(f"Filters config: {self.config.FILTERS}")
 
-            if not batch:
-                logger.info("No more records to fetch. Pagination complete.")
-                break
-
-            all_records.extend(batch)
-            batch_count += 1
-
-            # Progress logging based on MAX_RECORDS setting
-            if self.config.MAX_RECORDS:
-                # Show progress relative to MAX_RECORDS limit
-                percentage = (len(all_records) / self.config.MAX_RECORDS) * 100
-                remaining = max(0, self.config.MAX_RECORDS - len(all_records))
-                progress_msg = f"Batch {batch_count}: {len(batch)} records | Progress: {len(all_records)}/{self.config.MAX_RECORDS} ({percentage:.1f}%) | Remaining: {remaining}"
+        for current_combination, filter_combo in enumerate(filter_combinations, 1):
+            # Create readable filter name
+            if filter_combo:
+                filter_name = " + ".join([f"{k}={v}" for k, v in sorted(filter_combo.items())])
             else:
-                # Show progress relative to API total count
-                if self.total_count:
-                    remaining = max(0, self.total_count - len(all_records))
-                    percentage = (len(all_records) / self.total_count) * 100
-                    progress_msg = f"Batch {batch_count}: {len(batch)} records | Progress: {len(all_records)}/{self.total_count} ({percentage:.1f}%) | Remaining: {remaining}"
-                else:
-                    progress_msg = f"Batch {batch_count}: {len(batch)} records | Total so far: {len(all_records)}"
+                filter_name = "All data (no filters)"
 
-            logger.info(progress_msg)
+            logger.info(f"\n[{current_combination}/{total_combinations}] Fetching: {filter_name}")
 
-            # Check if we've reached the limit
-            if self.config.MAX_RECORDS and len(all_records) >= self.config.MAX_RECORDS:
-                all_records = all_records[:self.config.MAX_RECORDS]
-                logger.info(f"Reached maximum records limit: {self.config.MAX_RECORDS}")
-                break
+            try:
+                combination_records = self._fetch_for_combination(filter_combo, filter_name)
+                all_records.extend(combination_records)
+            except Exception as e:
+                logger.error(f"Failed to fetch {filter_name}: {str(e)}")
+                continue
 
-            # Stop if we got fewer records than the batch size (last page)
-            if len(batch) < self.config.BATCH_SIZE:
-                logger.info("Received fewer records than batch size. Final batch reached.")
-                break
-
-            offset += self.config.BATCH_SIZE
-
-        # Final log message
-        if self.config.MAX_RECORDS:
-            final_msg = f"Data extraction complete. Total records fetched: {len(all_records)} (limit: {self.config.MAX_RECORDS})"
-        else:
-            final_msg = f"Data extraction complete. Total records fetched: {len(all_records)}"
-            if self.total_count:
-                final_msg += f" out of {self.total_count} available"
-
-        logger.info(final_msg)
+        self.total_records_fetched = len(all_records)
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Data extraction complete. Total records fetched: {self.total_records_fetched}")
+        logger.info(f"{'='*60}\n")
 
         return all_records
+
+    def _fetch_for_combination(self, filter_dict: Dict[str, str], filter_name: str) -> List[Dict[str, Any]]:
+        """
+        Fetch all data for a specific filter combination.
+
+        Args:
+            filter_dict: Dictionary of filters for this combination
+            filter_name: Human-readable name for logging
+
+        Returns:
+            List of records for this combination
+        """
+        records = []
+        offset = 0
+        batch_number = 0
+        total_count = None
+
+        # Calculate effective batch size respecting MAX_RECORDS limit
+        effective_batch_size = self.config.BATCH_SIZE
+        if self.config.MAX_RECORDS and self.config.MAX_RECORDS < self.config.BATCH_SIZE:
+            effective_batch_size = self.config.MAX_RECORDS
+            logger.info(f"{filter_name}: Adjusted batch size from {self.config.BATCH_SIZE} to {effective_batch_size} (MAX_RECORDS limit)")
+
+        while True:
+            batch_number += 1
+
+            # Build conditions from filter dictionary
+            conditions = self.build_conditions(filter_dict)
+
+            payload = {
+                "conditions": conditions,
+                "limit": effective_batch_size,
+                "offset": offset
+            }
+
+            try:
+                logger.debug(f"Fetching batch {batch_number} at offset {offset}")
+                logger.debug(f"Payload: {payload}")
+
+                response = requests.post(
+                    self.base_url,
+                    json=payload,
+                    timeout=60,
+                    headers={"Content-Type": "application/json"}
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                batch = result.get("results", [])
+
+                # Extract total count from first batch response
+                if total_count is None and "count" in result:
+                    total_count = result["count"]
+                    if self.config.MAX_RECORDS:
+                        records_to_fetch = min(self.config.MAX_RECORDS, total_count)
+                        logger.info(f"{filter_name}: Getting {records_to_fetch} rows out of {total_count} available")
+                    else:
+                        logger.info(f"{filter_name}: API total available: {total_count}")
+
+                if not batch:
+                    logger.info(f"{filter_name}: No more records. Pagination complete.")
+                    break
+
+                records.extend(batch)
+
+                # Progress logging with total count
+                if total_count:
+                    percentage = (len(records) / total_count) * 100
+                    remaining = max(0, total_count - len(records))
+                    logger.info(f"{filter_name}: Batch {batch_number} fetched {len(batch)} records | Progress: {len(records)}/{total_count} ({percentage:.1f}%) | Remaining: {remaining}")
+                else:
+                    logger.info(f"{filter_name}: Batch {batch_number} fetched {len(batch)} records (total so far: {len(records)})")
+
+                # Check if we've reached the limit
+                if self.config.MAX_RECORDS and len(records) >= self.config.MAX_RECORDS:
+                    records = records[:self.config.MAX_RECORDS]
+                    if total_count and self.config.MAX_RECORDS < total_count:
+                        logger.info(f"{filter_name}: Reached maximum records limit: {self.config.MAX_RECORDS} (total available: {total_count})")
+                    else:
+                        logger.info(f"{filter_name}: Reached maximum records limit: {self.config.MAX_RECORDS}")
+                    break
+
+                # Stop if we got fewer records than the batch size (last page)
+                if len(batch) < effective_batch_size:
+                    logger.info(f"{filter_name}: Received fewer records than batch size. Final batch reached.")
+                    break
+
+                offset += effective_batch_size
+
+            except requests.exceptions.HTTPError as e:
+                logger.error(f"{filter_name}: HTTP error at offset {offset}: {e.response.status_code}")
+                logger.error(f"Response: {e.response.text[:500]}")
+                raise
+            except Exception as e:
+                logger.error(f"{filter_name}: Request failed at offset {offset}: {str(e)}")
+                raise
+
+        if total_count:
+            if len(records) < total_count:
+                logger.info(f"{filter_name}: Extraction complete. Fetched {len(records)} out of {total_count} available records ({(len(records)/total_count)*100:.1f}%)")
+            else:
+                logger.info(f"{filter_name}: Extraction complete. Fetched all {len(records)} records")
+        else:
+            logger.info(f"{filter_name}: Extraction complete. Total records: {len(records)}")
+
+        return records

@@ -14,8 +14,10 @@ class Config:
     base_url = os.environ['BASE_URL']
 
     # Filter settings
-    STATES = [s.strip().upper() for s in os.environ['STATES'].split(',')]
-    SPECIALTIES = [s.strip() for s in os.environ['SPECIALTIES'].split(',')]
+    FILTERS ={
+        "state" : [s.strip().upper() for s in os.environ['STATES'].split(',')],
+        "pri_spec": [s.strip() for s in os.environ['SPECIALTIES'].split(',')]
+    }
 
     # Pagination settings
     BATCH_SIZE = int(os.environ['BATCH_SIZE'])

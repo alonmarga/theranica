@@ -141,6 +141,7 @@ class BigQueryLoader:
             logger.info(f"Loaded {destination_table.num_rows} rows to {table_id}")
             logger.info(f"Table schema verified with {len(schema)} fields")
 
+            # self.verify_data(table_name)
             return table_id
 
         except GoogleCloudError as e:
@@ -162,7 +163,7 @@ class BigQueryLoader:
 
             # Run sample query
             query = f"""
-                SELECT 
+                SELECT
                     COUNT(*) as total_records,
                     COUNT(DISTINCT npi) as unique_npis
                 FROM `{table_id}`

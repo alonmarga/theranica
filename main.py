@@ -40,7 +40,7 @@ class ETLPipeline:
             self.start_time = datetime.now()
             logger.info("*" * 80)
             logger.info("Starting CMS ETL Pipeline")
-            logger.info(f"Configuration: States={self.config.STATES}, Specialties={self.config.SPECIALTIES}")
+            logger.info(f"Configuration: Filters={self.config.FILTERS}")
             logger.info("*" * 80)
 
             # Extract
@@ -74,7 +74,6 @@ class ETLPipeline:
 
             self.end_time = datetime.now()
             duration = (self.end_time - self.start_time).total_seconds()
-
             logger.info("*" * 80)
             logger.info("ETL Pipeline Completed Successfully")
             logger.info(f"Clinicians table: {clinicians_table_id}")
