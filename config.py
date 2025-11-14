@@ -1,42 +1,47 @@
 import os
 
-# Set your credentials here
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r"C:\Users\alonm\Downloads\cms-pipeline-16bfeddf7657.json"
-os.environ['GCP_PROJECT_ID'] = 'cms-pipeline'
-"""
-Configuration settings for the CMS ETL Pipeline.
-"""
+from dotenv import load_dotenv
 
-import os
-from typing import List
+load_dotenv()
+
+# GCP Credentials
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r"C:\Users\alonm\Downloads\cms-pipeline-16bfeddf7657.json"
 
 
 class Config:
     """Centralized configuration for the ETL pipeline."""
 
-    # Data Source - CSV Download (SODA API deprecated)
-    CSV_URL = "https://data.cms.gov/provider-data/sites/default/files/resources/mj5m-pzi6_0.csv"
+    base_url = os.environ['BASE_URL']
 
-    # Filter scope - choose your states and specialties
-    STATES = ["NY", "FL"]  # New York and Florida
-    SPECIALTIES = ["INTERNAL MEDICINE", "ANESTHESIOLOGY"]  # Specialties as they appear in pri_spec
+    # Filter settings
+    STATES = [s.strip().upper() for s in os.environ['STATES'].split(',')]
+    SPECIALTIES = [s.strip() for s in os.environ['SPECIALTIES'].split(',')]
 
     # Pagination settings
-    BATCH_SIZE = 1500  # New CMS API limit is 1,500 records per request (was 50,000)
-    MAX_RECORDS = 5000  # Limit to 5000 records for testing (set to None for unlimited)
+    BATCH_SIZE = int(os.environ['BATCH_SIZE'])
+
+    # Handle MAX_RECORDS - can be None or an integer
+    _max_records_env = os.environ.get('MAX_RECORDS', '').strip()
+    if _max_records_env and _max_records_env.upper() != 'NONE':
+        try:
+            MAX_RECORDS = int(_max_records_env)
+        except ValueError:
+            MAX_RECORDS = None
+    else:
+        MAX_RECORDS = None
 
     # GCP Configuration
-    PROJECT_ID = os.getenv("GCP_PROJECT_ID")  # Set via environment variable
-    DATASET_ID = "cms_clinicians"
-    DATASET_LOCATION = "US"
-    DATASET_DESCRIPTION = "CMS Doctors and Clinicians National Downloadable File"
+    PROJECT_ID = os.environ["GCP_PROJECT_ID"]
+    DATASET_ID = os.environ["DATASET_ID"]
+    DATASET_LOCATION = os.environ['DATASET_LOCATION']
+    DATASET_DESCRIPTION = "Theranic ETL home task for DE"
 
     # BigQuery table names
-    CLINICIANS_TABLE = "clinicians"
-    LOCATIONS_TABLE = "practice_locations"
+    CLINICIANS_TABLE = os.environ['CLINICIANS_TABLE']
+    LOCATIONS_TABLE = os.environ['LOCATIONS_TABLE']
 
     # Data quality settings
-    DEDUPLICATE_ON = ["npi", "state", "city", "zip_code"]
+    DEDUPLICATE_ON = [s.strip() for s in os.environ['DEDUPLICATE_ON'].split(',')]
     VALIDATION_RULES = {
         "npi": "must be numeric and 10 digits",
         "state": "must be 2-letter state code",
@@ -45,6 +50,8 @@ class Config:
 
     # Logging
     LOG_LEVEL = "INFO"
+
+
 
     @classmethod
     def validate(cls):

@@ -1,14 +1,7 @@
-"""
-Transform module for cleaning and standardizing CMS data.
-Includes deduplication, data type conversions, and data quality validation.
-"""
-
 import logging
-import pandas as pd
-import numpy as np
 from typing import List, Dict, Any, Tuple
-from datetime import datetime
-import re
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +40,7 @@ class DataTransformer:
         locations_df = self._create_locations_table(df)
 
         logger.info(f"Transformation complete: {len(clinicians_df)} clinicians, "
-                   f"{len(locations_df)} locations")
+                    f"{len(locations_df)} locations")
 
         return clinicians_df, locations_df
 
@@ -92,8 +85,8 @@ class DataTransformer:
 
         # String columns - strip whitespace and convert to uppercase where appropriate
         string_cols = ['first_name', 'last_name', 'middle_name', 'credentials',
-                      'medical_specialty', 'gender', 'organization_name',
-                      'street_address', 'street_address_2', 'city', 'state']
+                       'medical_specialty', 'gender', 'organization_name',
+                       'street_address', 'street_address_2', 'city', 'state']
 
         for col in string_cols:
             if col in df.columns:
@@ -199,9 +192,9 @@ class DataTransformer:
         # Add record metadata
         locations['ingestion_timestamp'] = pd.Timestamp.now()
         locations['record_id'] = (
-            locations['npi'].astype(str) + '_' +
-            locations['state'].astype(str) + '_' +
-            locations.index.astype(str)
+                locations['npi'].astype(str) + '_' +
+                locations['state'].astype(str) + '_' +
+                locations.index.astype(str)
         )
         locations['is_valid_record'] = True
 

@@ -6,10 +6,11 @@ Main orchestration script for extracting, transforming, and loading data.
 import logging
 import sys
 from datetime import datetime
+
 from config import Config
 from extract import CmsDataExtractor
-from transform import DataTransformer
 from load import BigQueryLoader
+from transform import DataTransformer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,10 +38,10 @@ class ETLPipeline:
         """Execute the full ETL pipeline."""
         try:
             self.start_time = datetime.now()
-            logger.info("=" * 80)
+            logger.info("*" * 80)
             logger.info("Starting CMS ETL Pipeline")
             logger.info(f"Configuration: States={self.config.STATES}, Specialties={self.config.SPECIALTIES}")
-            logger.info("=" * 80)
+            logger.info("*" * 80)
 
             # Extract
             logger.info("PHASE 1: Extracting data from CMS API...")
@@ -74,12 +75,11 @@ class ETLPipeline:
             self.end_time = datetime.now()
             duration = (self.end_time - self.start_time).total_seconds()
 
-            logger.info("=" * 80)
+            logger.info("*" * 80)
             logger.info("ETL Pipeline Completed Successfully")
             logger.info(f"Clinicians table: {clinicians_table_id}")
             logger.info(f"Locations table: {locations_table_id}")
             logger.info(f"Total duration: {duration:.2f} seconds")
-            logger.info("=" * 80)
 
             return True
 

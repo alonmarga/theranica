@@ -4,11 +4,12 @@ Handles schema definition, table creation, and data loading.
 """
 
 import logging
-import pandas as pd
 from typing import Dict, Any
+
+import pandas as pd
+from google.api_core.exceptions import Conflict
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
-from google.api_core.exceptions import AlreadyExists, Conflict
 
 logger = logging.getLogger(__name__)
 
@@ -44,66 +45,66 @@ class BigQueryLoader:
         schemas = {
             'clinicians': [
                 bigquery.SchemaField('record_id', 'STRING', mode='REQUIRED',
-                                   description='Unique record identifier'),
+                                     description='Unique record identifier'),
                 bigquery.SchemaField('npi', 'INTEGER', mode='REQUIRED',
-                                   description='National Provider Identifier'),
+                                     description='National Provider Identifier'),
                 bigquery.SchemaField('first_name', 'STRING', mode='NULLABLE',
-                                   description='Provider first name'),
+                                     description='Provider first name'),
                 bigquery.SchemaField('last_name', 'STRING', mode='NULLABLE',
-                                   description='Provider last name'),
+                                     description='Provider last name'),
                 bigquery.SchemaField('middle_name', 'STRING', mode='NULLABLE',
-                                   description='Provider middle name'),
+                                     description='Provider middle name'),
                 bigquery.SchemaField('credentials', 'STRING', mode='NULLABLE',
-                                   description='Provider credentials (MD, DO, DDS, etc.)'),
+                                     description='Provider credentials (MD, DO, DDS, etc.)'),
                 bigquery.SchemaField('medical_specialty', 'STRING', mode='NULLABLE',
-                                   description='Primary medical specialty'),
+                                     description='Primary medical specialty'),
                 bigquery.SchemaField('gender', 'STRING', mode='NULLABLE',
-                                   description='Provider gender (M/F)'),
+                                     description='Provider gender (M/F)'),
                 bigquery.SchemaField('is_valid_record', 'BOOLEAN', mode='NULLABLE',
-                                   description='Data quality validation flag'),
+                                     description='Data quality validation flag'),
                 bigquery.SchemaField('ingestion_timestamp', 'TIMESTAMP', mode='REQUIRED',
-                                   description='Timestamp when record was ingested'),
+                                     description='Timestamp when record was ingested'),
             ],
             'practice_locations': [
                 bigquery.SchemaField('record_id', 'STRING', mode='REQUIRED',
-                                   description='Unique record identifier'),
+                                     description='Unique record identifier'),
                 bigquery.SchemaField('npi', 'INTEGER', mode='REQUIRED',
-                                   description='National Provider Identifier'),
+                                     description='National Provider Identifier'),
                 bigquery.SchemaField('state', 'STRING', mode='REQUIRED',
-                                   description='State code (2-letter abbreviation)'),
+                                     description='State code (2-letter abbreviation)'),
                 bigquery.SchemaField('city', 'STRING', mode='NULLABLE',
-                                   description='City'),
+                                     description='City'),
                 bigquery.SchemaField('zip_code', 'STRING', mode='NULLABLE',
-                                   description='Zip code (5 or 9-digit format)'),
+                                     description='Zip code (5 or 9-digit format)'),
                 bigquery.SchemaField('street_address', 'STRING', mode='NULLABLE',
-                                   description='Primary street address'),
+                                     description='Primary street address'),
                 bigquery.SchemaField('street_address_2', 'STRING', mode='NULLABLE',
-                                   description='Secondary street address (suite, apt, etc.)'),
+                                     description='Secondary street address (suite, apt, etc.)'),
                 bigquery.SchemaField('phone', 'STRING', mode='NULLABLE',
-                                   description='Contact phone number'),
+                                     description='Contact phone number'),
                 bigquery.SchemaField('organization_name', 'STRING', mode='NULLABLE',
-                                   description='Organization/practice name'),
+                                     description='Organization/practice name'),
                 bigquery.SchemaField('enrollment_status', 'STRING', mode='NULLABLE',
-                                   description='Current enrollment status'),
+                                     description='Current enrollment status'),
                 bigquery.SchemaField('enrollment_date', 'DATE', mode='NULLABLE',
-                                   description='Date of enrollment with CMS'),
+                                     description='Date of enrollment with CMS'),
                 bigquery.SchemaField('accepts_medicare', 'BOOLEAN', mode='NULLABLE',
-                                   description='Whether provider accepts Medicare'),
+                                     description='Whether provider accepts Medicare'),
                 bigquery.SchemaField('accepts_medicaid', 'BOOLEAN', mode='NULLABLE',
-                                   description='Whether provider accepts Medicaid'),
+                                     description='Whether provider accepts Medicaid'),
                 bigquery.SchemaField('last_update_date', 'DATE', mode='NULLABLE',
-                                   description='Date of last update from CMS'),
+                                     description='Date of last update from CMS'),
                 bigquery.SchemaField('is_valid_record', 'BOOLEAN', mode='NULLABLE',
-                                   description='Data quality validation flag'),
+                                     description='Data quality validation flag'),
                 bigquery.SchemaField('ingestion_timestamp', 'TIMESTAMP', mode='REQUIRED',
-                                   description='Timestamp when record was ingested'),
+                                     description='Timestamp when record was ingested'),
             ]
         }
 
         return schemas.get(table_name, [])
 
     def load_data(self, df: pd.DataFrame, table_name: str,
-                 description: str = '') -> str:
+                  description: str = '') -> str:
         """
         Load a DataFrame to BigQuery.
 

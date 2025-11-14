@@ -1,11 +1,8 @@
-"""
-Utility script to export sample data from BigQuery to CSV.
-Useful for validation and including in repository.
-"""
-
 import logging
-import pandas as pd
+import os
+
 from google.cloud import bigquery
+
 from config import Config
 
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +34,7 @@ def export_sample_data(table_name: str, sample_size: int = 100):
     query_job = client.query(query)
     df = query_job.to_dataframe()
 
+    os.makedirs('data', exist_ok=True)
     output_file = f"data/sample_{table_name}.csv"
     df.to_csv(output_file, index=False)
     logger.info(f"Exported {len(df)} rows to {output_file}")

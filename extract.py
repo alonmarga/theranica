@@ -4,26 +4,28 @@ Uses the new POST API with conditions.
 """
 
 import logging
-import requests
 from typing import List, Dict, Any
+
+import requests
+
 from config import Config
 
 logger = logging.getLogger(__name__)
 
 
 class CmsDataExtractor:
-    """Extracts data from CMS Doctors and Clinicians API using new POST format."""
 
     def __init__(self, config: Config):
         self.config = config
-        # New API endpoint
-        self.base_url = "https://data.cms.gov/provider-data/api/1/datastore/query/mj5m-pzi6/0"
+        # API endpoint
+        self.base_url = config.base_url
+        self.total_count = None
 
     def build_conditions(self) -> List[Dict[str, Any]]:
         """Build filter conditions for the API."""
         conditions = []
 
-        # Add state filter - NY OR FL
+        # Add state filter
         # Only add first state as single filter for now
         if self.config.STATES:
             conditions.append({
@@ -78,13 +80,15 @@ class CmsDataExtractor:
             result = response.json()
             logger.debug(f"API response keys: {result.keys() if isinstance(result, dict) else 'list'}")
 
-            # Handle nested response format - API returns {results: [...], count: ..., schema: ..., query: ...}
-            if isinstance(result, dict) and "results" in result:
-                data = result["results"]
-            elif isinstance(result, list):
-                data = result
-            else:
-                data = []
+            data = result["results"]
+
+            # Extract total count from first batch response
+            if self.total_count is None and "count" in result:
+                self.total_count = result["count"]
+                if self.config.MAX_RECORDS:
+                    logger.info(f"API total count: {self.total_count} | Limit: {self.config.MAX_RECORDS}")
+                else:
+                    logger.info(f"API total count available: {self.total_count}")
 
             logger.info(f"Fetched {len(data)} records at offset {offset}")
             return data
@@ -117,7 +121,23 @@ class CmsDataExtractor:
 
             all_records.extend(batch)
             batch_count += 1
-            logger.info(f"Batch {batch_count}: Retrieved {len(batch)} records (Total: {len(all_records)})")
+
+            # Progress logging based on MAX_RECORDS setting
+            if self.config.MAX_RECORDS:
+                # Show progress relative to MAX_RECORDS limit
+                percentage = (len(all_records) / self.config.MAX_RECORDS) * 100
+                remaining = max(0, self.config.MAX_RECORDS - len(all_records))
+                progress_msg = f"Batch {batch_count}: {len(batch)} records | Progress: {len(all_records)}/{self.config.MAX_RECORDS} ({percentage:.1f}%) | Remaining: {remaining}"
+            else:
+                # Show progress relative to API total count
+                if self.total_count:
+                    remaining = max(0, self.total_count - len(all_records))
+                    percentage = (len(all_records) / self.total_count) * 100
+                    progress_msg = f"Batch {batch_count}: {len(batch)} records | Progress: {len(all_records)}/{self.total_count} ({percentage:.1f}%) | Remaining: {remaining}"
+                else:
+                    progress_msg = f"Batch {batch_count}: {len(batch)} records | Total so far: {len(all_records)}"
+
+            logger.info(progress_msg)
 
             # Check if we've reached the limit
             if self.config.MAX_RECORDS and len(all_records) >= self.config.MAX_RECORDS:
@@ -132,5 +152,14 @@ class CmsDataExtractor:
 
             offset += self.config.BATCH_SIZE
 
-        logger.info(f"Data extraction complete. Total records: {len(all_records)}")
+        # Final log message
+        if self.config.MAX_RECORDS:
+            final_msg = f"Data extraction complete. Total records fetched: {len(all_records)} (limit: {self.config.MAX_RECORDS})"
+        else:
+            final_msg = f"Data extraction complete. Total records fetched: {len(all_records)}"
+            if self.total_count:
+                final_msg += f" out of {self.total_count} available"
+
+        logger.info(final_msg)
+
         return all_records
