@@ -123,50 +123,81 @@ class DataTransformer:
         return df
 
     def _validate_data_quality(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add validation fields and log quality issues."""
+        """Add validation fields based on config VALIDATION_RULES."""
         logger.info("Validating data quality...")
+        logger.info(f"Applying validation rules: {self.config.VALIDATION_RULES}")
 
         issues = {}
+        initial_count = len(df)
 
-        # Validate NPI (should be non-zero)
-        if 'npi' in df.columns:
-            invalid_npi = (df['npi'] == 0) | (df['npi'].isna())
-            issues['invalid_npi'] = invalid_npi.sum()
-            df = df[~invalid_npi]
+        # Apply validation rules from config
+        for field, rule_description in self.config.VALIDATION_RULES.items():
+            if field not in df.columns:
+                logger.debug(f"Field '{field}' not in dataframe, skipping validation")
+                continue
 
-        # Validate state (should be 2 characters)
-        if 'state' in df.columns:
-            invalid_state = ~df['state'].str.match(r'^[A-Z]{2}$', na=False)
-            issues['invalid_state'] = invalid_state.sum()
-            df = df[~invalid_state]
+            invalid_mask = pd.Series(False, index=df.index)
 
-        # Validate zip code (5 or 9 digits)
-        if 'zip_code' in df.columns:
-            invalid_zip = ~df['zip_code'].str.match(r'^\d{5}(-\d{4})?$', na=False)
-            issues['invalid_zip'] = invalid_zip.sum()
-            df = df[~invalid_zip]
+            if field == 'npi':
+                # NPI must be numeric and 10 digits
+                invalid_mask = (df['npi'] == 0) | (df['npi'].isna()) | (df['npi'].astype(str).str.len() != 10)
+                issues['invalid_npi'] = invalid_mask.sum()
+
+            elif field == 'state':
+                # State must be 2-letter code
+                invalid_mask = ~df['state'].str.match(r'^[A-Z]{2}$', na=False)
+                issues['invalid_state'] = invalid_mask.sum()
+
+            elif field == 'zip_code':
+                # ZIP code validation:
+                # Accept: 5 digits (12345), 9 digits (123456789), XXXXX-XXXX (12345-6789)
+                # Reject: empty strings, null values
+                invalid_mask = ~(
+                        df['zip_code'].str.match(r'^\d{5}$', na=False) |  # 5-digit
+                        df['zip_code'].str.match(r'^\d{9}$', na=False) |  # 9-digit (CMS format)
+                        df['zip_code'].str.match(r'^\d{5}-\d{4}$', na=False)  # XXXXX-XXXX format
+                )
+                issues['invalid_zip'] = invalid_mask.sum()
+
+            # Remove invalid records
+            if invalid_mask.sum() > 0:
+                logger.warning(
+                    f"Data quality issue - {field} ({rule_description}): "
+                    f"{invalid_mask.sum()} records removed"
+                )
+                df = df[~invalid_mask].copy()
 
         # Log quality metrics
-        for issue, count in issues.items():
-            if count > 0:
-                logger.warning(f"Data quality issue - {issue}: {count} records removed")
+        removed_count = initial_count - len(df)
+        if removed_count > 0:
+            logger.warning(f"Total records removed during validation: {removed_count}")
 
-        # Add validation flag
+        # Ensure df is a copy to avoid SettingWithCopyWarning
+        df = df.copy()
+
+        # Add validation flag (True for all remaining records after filtering)
         df['is_valid_record'] = True
 
-        logger.info(f"Data quality validation complete. Retained {len(df)} valid records")
+        logger.info(
+            f"Data quality validation complete. "
+            f"Retained {len(df)} valid records out of {initial_count} "
+            f"({(len(df) / initial_count * 100):.1f}%)"
+        )
         return df
 
     def _create_clinicians_table(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create the clinicians dimension table."""
         logger.info("Creating clinicians table...")
+
         # Use only columns that exist
         clinician_cols = [col for col in [
             'npi', 'first_name', 'last_name', 'middle_name', 'credentials',
             'medical_specialty', 'gender'
         ] if col in df.columns]
 
-        clinicians = df[clinician_cols].drop_duplicates(subset=['npi'], keep='first')
+        # Deduplicate on NPI only for clinicians table
+        clinicians = df[clinician_cols].drop_duplicates(subset=['npi'], keep='first').copy()
+        logger.info(f"Deduplicating clinicians on: ['npi']")
 
         # Add record metadata
         clinicians['ingestion_timestamp'] = pd.Timestamp.now()
@@ -177,7 +208,7 @@ class DataTransformer:
         return clinicians.reset_index(drop=True)
 
     def _create_locations_table(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create the practice locations table."""
+        """Create the practice locations table using DEDUPLICATE_ON config."""
         logger.info("Creating practice locations table...")
 
         # Use only columns that exist
@@ -187,7 +218,18 @@ class DataTransformer:
             'accepts_medicare', 'accepts_medicaid', 'last_update_date'
         ] if col in df.columns]
 
-        locations = df[location_cols].drop_duplicates(subset=['npi', 'state', 'city', 'zip_code'], keep='first')
+        # Get deduplication columns from config and filter to available columns
+        dedup_cols = [col for col in self.config.DEDUPLICATE_ON if col in df.columns]
+
+        if not dedup_cols:
+            logger.warning(
+                f"No deduplication columns from config {self.config.DEDUPLICATE_ON} "
+                f"found in dataframe. Using default: ['npi', 'state', 'city', 'zip_code']"
+            )
+            dedup_cols = ['npi', 'state', 'city', 'zip_code']
+
+        logger.info(f"Deduplicating locations on: {dedup_cols}")
+        locations = df[location_cols].drop_duplicates(subset=dedup_cols, keep='first').copy()
 
         # Add record metadata
         locations['ingestion_timestamp'] = pd.Timestamp.now()
