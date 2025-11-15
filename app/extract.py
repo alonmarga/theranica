@@ -10,7 +10,7 @@ from itertools import product
 
 import requests
 
-from config import Config
+from app.config import Config
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # GCP Credentials
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r"C:\Users\alonm\Downloads\cms-pipeline-16bfeddf7657.json"
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/app/gcp-credentials.json'
 
 
 class Config:
@@ -63,6 +63,8 @@ class Config:
                 "GCP_PROJECT_ID environment variable is not set. "
                 "Please set it before running the pipeline."
             )
-        if not cls.STATES or not cls.SPECIALTIES:
-            raise ValueError("STATES and SPECIALTIES must not be empty.")
+        for filter_name, filter_values in cls.FILTERS.items():
+            if not filter_values:
+                raise ValueError(f"{filter_name.upper()} filter must not be empty.")
+
         return True

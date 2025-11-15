@@ -141,7 +141,14 @@ class BigQueryLoader:
             logger.info(f"Loaded {destination_table.num_rows} rows to {table_id}")
             logger.info(f"Table schema verified with {len(schema)} fields")
 
-            # self.verify_data(table_name)
+            # Verify data and log results
+            try:
+                verification = self.verify_data(table_name)
+                logger.info(f"Data verification successful: {verification['query_results']}")
+            except Exception as verify_error:
+                logger.warning(f"Data verification warning (non-critical): {str(verify_error)}")
+                # Don't fail the pipeline if verification fails, just warn
+
             return table_id
 
         except GoogleCloudError as e:
@@ -170,7 +177,7 @@ class BigQueryLoader:
             """
 
             query_job = self.client.query(query)
-            results = query_job.result().to_dict_list()
+            results = [dict(row) for row in query_job.result()]
 
             verification = {
                 'table_id': table_id,
@@ -181,7 +188,10 @@ class BigQueryLoader:
                 'query_results': results[0] if results else {}
             }
 
-            logger.info(f"Verification complete: {verification}")
+            logger.info(f"✓ Verification complete for {table_name}")
+            logger.info(f"  Total records: {verification['num_rows']}")
+            logger.info(f"  Query results: {verification['query_results']}")
+
             return verification
 
         except Exception as e:

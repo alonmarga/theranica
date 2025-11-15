@@ -7,37 +7,25 @@ services:
       dockerfile: Dockerfile
     container_name: cms-etl-pipeline
 
-    # Environment variables from .env file
     env_file:
       - .env
 
-    # Environment overrides (optional)
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
 
-    # Volume mounts
     volumes:
-      # Mount GCP credentials file (adjust path to your local machine)
-      - ${GCP_CREDENTIALS_PATH}:/cms-pipeline-16bfeddf7657.json:ro
+      # CHANGE THIS LINE
+      - ./app/cms-pipeline-16bfeddf7657.json:/app/gcp-credentials.json:ro
 
-      # Mount data directory for outputs
       - ./data:/app/data
-
-      # Mount logs directory
       - ./logs:/app/logs
 
-      # Mount config/code (optional - for development)
-      - ./.env:/app/.env:ro
-
-    # Network
     networks:
       - cms-network
 
-    # Restart policy
     restart: unless-stopped
 
-    # Resource limits (optional)
     deploy:
       resources:
         limits:
@@ -47,7 +35,6 @@ services:
           cpus: '1'
           memory: 1G
 
-    # Logging
     logging:
       driver: "json-file"
       options:
@@ -57,3 +44,6 @@ services:
 networks:
   cms-network:
     driver: bridge
+
+
+
