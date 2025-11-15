@@ -5,7 +5,7 @@ __pycache__/
  .idea/
 # C extensions
 *.so
-
+cms-pipeline-9a03af99c351.json
 # Distribution / packaging
 .Python
 build/

@@ -1,4 +1,4 @@
-version: '3.9'
+version: '3'
 
 services:
   cms-etl-pipeline:
@@ -15,10 +15,8 @@ services:
       - PYTHONDONTWRITEBYTECODE=1
 
     volumes:
-      # CHANGE THIS LINE
-      - ./app/cms-pipeline-16bfeddf7657.json:/app/gcp-credentials.json:ro
-
-      - ./data:/app/data
+      - ./app/cms-pipeline-9a03af99c351.json:/app/gcp-credentials.json:ro
+      - ./data_export:/app/data_export
       - ./logs:/app/logs
 
     networks:
@@ -44,6 +42,3 @@ services:
 networks:
   cms-network:
     driver: bridge
-
-
-

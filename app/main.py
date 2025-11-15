@@ -26,17 +26,17 @@ logger = logging.getLogger(__name__)
 
 
 class ETLPipeline:
-    """Orchestrates the ETL pipeline execution."""
+    # Orchestrates the ETL pipeline execution.
 
     def __init__(self, config: Config):
         self.config = config
-        self.extractor = CmsDataExtractor(config)
-        self.transformer = DataTransformer(config)
-        self.loader = BigQueryLoader(config)
+        self.extractor = CmsDataExtractor(config) # Get data from API
+        self.transformer = DataTransformer(config) # Transform and validate
+        self.loader = BigQueryLoader(config) # Load to BQ
         self.start_time = None
         self.end_time = None
 
-    def run(self, with_export=False, export_only=False):
+    def run(self, with_export=False, export_only=False, include_invalid=False):
         """
         Execute ETL pipeline.
 
@@ -49,26 +49,26 @@ class ETLPipeline:
 
             # Export only mode
             if export_only:
-                logger.info("*" * 80)
+                logger.info("*" * 100)
                 logger.info("Starting Export Only")
-                logger.info("*" * 80)
+                logger.info("*" * 100)
                 self._export_data()
                 self.end_time = datetime.now()
                 duration = (self.end_time - self.start_time).total_seconds()
-                logger.info("*" * 80)
+                logger.info("*" * 100)
                 logger.info("Export Completed Successfully")
                 logger.info(f"Total duration: {duration:.2f} seconds")
                 return True
 
             # Normal ETL mode
-            logger.info("*" * 80)
+            logger.info("*" * 100)
             logger.info("Starting CMS ETL Pipeline")
             logger.info(f"Configuration: Filters={self.config.FILTERS}")
             logger.info(f"Export after ETL: {with_export}")
-            logger.info("*" * 80)
+            logger.info("*" * 100)
 
-            # PHASE 1: Extract
-            logger.info("PHASE 1: Extracting data from CMS API...")
+            # STEP 1: Extract
+            logger.info("STEP 1: Extracting data from CMS API...")
             raw_data = self.extractor.fetch_all_data()
             logger.info(f"Extracted {len(raw_data)} records from API")
 
@@ -76,14 +76,15 @@ class ETLPipeline:
                 logger.warning("No data extracted. Pipeline terminated.")
                 return False
 
-            # PHASE 2: Transform
+            # STEP 2: Transform
             logger.info("PHASE 2: Transforming and cleaning data...")
-            clinicians_df, locations_df = self.transformer.transform(raw_data)
-            logger.info(f"Transformed into {len(clinicians_df)} clinician records "
-                        f"and {len(locations_df)} location records")
+            clinicians_df, locations_df = self.transformer.transform(
+                raw_data,
+                include_invalid_records=include_invalid
+            )
 
-            # PHASE 3: Load
-            logger.info("PHASE 3: Loading data to BigQuery...")
+            # STEP 3: Load
+            logger.info("STEP 3: Loading data to BigQuery...")
             self.loader.create_dataset()
             clinicians_table_id = self.loader.load_data(
                 clinicians_df,
@@ -99,15 +100,15 @@ class ETLPipeline:
             logger.info(f"Clinicians table: {clinicians_table_id}")
             logger.info(f"Locations table: {locations_table_id}")
 
-            # PHASE 4: Export (optional)
+            # STEP 4: Export (optional)
             if with_export:
-                logger.info("PHASE 4: Exporting data to CSV...")
+                logger.info("STEP 4: Exporting data to CSV...")
                 self._export_data()
 
             self.end_time = datetime.now()
             duration = (self.end_time - self.start_time).total_seconds()
 
-            logger.info("*" * 80)
+            logger.info("*" * 100)
             logger.info("Pipeline Completed Successfully")
             logger.info(f"Total duration: {duration:.2f} seconds")
 
@@ -121,7 +122,6 @@ class ETLPipeline:
     def _export_data(self):
         """Export sample data from BigQuery to CSV."""
         try:
-            from app.export_data import export_all_samples
             export_all_samples()
             logger.info("Export completed successfully")
         except Exception as e:
@@ -151,6 +151,12 @@ Examples:
         help='Export only (no ETL)'
     )
 
+    parser.add_argument(
+        '--include-invalid',
+        action='store_true',
+        help='Include invalid records for testing (is_valid_record=False)'
+    )
+
     args = parser.parse_args()
 
     config = Config()
@@ -159,8 +165,8 @@ Examples:
     if args.export_only:
         success = pipeline.run(with_export=False, export_only=True)
     elif args.with_export:
-        success = pipeline.run(with_export=True, export_only=False)
+        success = pipeline.run(with_export=True, export_only=False, include_invalid=args.include_invalid)
     else:
-        success = pipeline.run(with_export=False, export_only=False)
+        success = pipeline.run(with_export=False, export_only=False, include_invalid=args.include_invalid)
 
     sys.exit(0 if success else 1)

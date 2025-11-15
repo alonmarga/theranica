@@ -1,29 +1,29 @@
+"""
+Config file to set in one central place ETL configuration
+"""
+
 import os
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# GCP Credentials
+# GCP Credentials, not best or even good practice, for this assignment only.
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/app/gcp-credentials.json'
 
 
 class Config:
     """Centralized configuration for the ETL pipeline."""
 
-    base_url = os.environ['BASE_URL']
+    base_url:str = os.environ['BASE_URL']
 
     # Filter settings
-    FILTERS ={
-        "state" : [s.strip().upper() for s in os.environ['STATES'].split(',')],
+    FILTERS:dict = {
+        "state": [s.strip().upper() for s in os.environ['STATES'].split(',')],
         "pri_spec": [s.strip() for s in os.environ['SPECIALTIES'].split(',')]
     }
 
     # Pagination settings
-    BATCH_SIZE = int(os.environ['BATCH_SIZE'])
+    BATCH_SIZE:int = int(os.environ['BATCH_SIZE'])
 
     # Handle MAX_RECORDS - can be None or an integer
-    _max_records_env = os.environ.get('MAX_RECORDS', '').strip()
+    _max_records_env:str = os.environ.get('MAX_RECORDS', '').strip()
     if _max_records_env and _max_records_env.upper() != 'NONE':
         try:
             MAX_RECORDS = int(_max_records_env)
@@ -33,38 +33,33 @@ class Config:
         MAX_RECORDS = None
 
     # GCP Configuration
-    PROJECT_ID = os.environ["GCP_PROJECT_ID"]
-    DATASET_ID = os.environ["DATASET_ID"]
-    DATASET_LOCATION = os.environ['DATASET_LOCATION']
-    DATASET_DESCRIPTION = "Theranic ETL home task for DE"
+    PROJECT_ID:str = os.environ["GCP_PROJECT_ID"]
+    DATASET_ID:str = os.environ["DATASET_ID"]
+    DATASET_LOCATION:str = os.environ['DATASET_LOCATION']
+    DATASET_DESCRIPTION:str = "Theranica ETL home assignment for DE"
 
     # BigQuery table names
-    CLINICIANS_TABLE = os.environ['CLINICIANS_TABLE']
-    LOCATIONS_TABLE = os.environ['LOCATIONS_TABLE']
+    CLINICIANS_TABLE:list = os.environ['CLINICIANS_TABLE']
+    LOCATIONS_TABLE:list = os.environ['LOCATIONS_TABLE']
 
     # Data quality settings
-    DEDUPLICATE_ON = [s.strip() for s in os.environ['DEDUPLICATE_ON'].split(',')]
-    VALIDATION_RULES = {
+    DEDUPLICATE_ON:list = [s.strip() for s in os.environ['DEDUPLICATE_ON'].split(',')]
+    VALIDATION_RULES:dict = {
         "npi": "must be numeric and 10 digits",
         "state": "must be 2-letter state code",
         "zip_code": "must be 5 digits or XXXXX-XXXX format"
     }
 
-    # Logging
-    LOG_LEVEL = "INFO"
-
-
+    SAMPLE_SIZE_TO_EXPORT:str = os.environ['SAMPLE_SIZE_TO_EXPORT']
+    DATA_DIR_TO_EXPORT:str = f'/app/{os.environ.get("DATA_DIR_TO_EXPORT", "data_export")}'
 
     @classmethod
     def validate(cls):
-        """Validate required configuration."""
+        # Example of validation for project id
         if not cls.PROJECT_ID:
             raise ValueError(
                 "GCP_PROJECT_ID environment variable is not set. "
                 "Please set it before running the pipeline."
             )
-        for filter_name, filter_values in cls.FILTERS.items():
-            if not filter_values:
-                raise ValueError(f"{filter_name.upper()} filter must not be empty.")
 
         return True

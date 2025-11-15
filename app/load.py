@@ -15,15 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 class BigQueryLoader:
-    """Loads transformed data into BigQuery."""
+    # Class handling loading to BQ
 
     def __init__(self, config):
         self.config = config
+        config.validate()
         self.client = bigquery.Client(project=config.PROJECT_ID)
         self.dataset_id = config.DATASET_ID
 
     def create_dataset(self):
-        """Create BigQuery dataset if it doesn't exist."""
+        # Create BigQuery dataset if it doesn't exist
         logger.info(f"Creating or verifying dataset: {self.dataset_id}")
 
         dataset_id_full = f"{self.config.PROJECT_ID}.{self.dataset_id}"
@@ -32,7 +33,7 @@ class BigQueryLoader:
         dataset.description = self.config.DATASET_DESCRIPTION
 
         try:
-            dataset = self.client.create_dataset(dataset, timeout=30)
+            self.client.create_dataset(dataset, timeout=30)
             logger.info(f"Dataset created: {dataset_id_full}")
         except Conflict:
             logger.info(f"Dataset already exists: {dataset_id_full}")
@@ -41,7 +42,7 @@ class BigQueryLoader:
             raise
 
     def get_schema(self, table_name: str) -> list:
-        """Get BigQuery schema for the specified table."""
+        # Get BigQuery schema for the specified table
         schemas = {
             'clinicians': [
                 bigquery.SchemaField('record_id', 'STRING', mode='REQUIRED',
@@ -159,7 +160,7 @@ class BigQueryLoader:
             raise
 
     def verify_data(self, table_name: str) -> Dict[str, Any]:
-        """Verify loaded data and return statistics."""
+        # Verify loaded data and return simple statistics
         logger.info(f"Verifying data in table: {table_name}")
 
         table_id = f"{self.config.PROJECT_ID}.{self.dataset_id}.{table_name}"
@@ -188,9 +189,9 @@ class BigQueryLoader:
                 'query_results': results[0] if results else {}
             }
 
-            logger.info(f"✓ Verification complete for {table_name}")
-            logger.info(f"  Total records: {verification['num_rows']}")
-            logger.info(f"  Query results: {verification['query_results']}")
+            logger.info(f"Verification complete for {table_name}")
+            logger.info(f"  --Total records: {verification['num_rows']}")
+            logger.info(f"  --Query results: {verification['query_results']}")
 
             return verification
 

@@ -1,3 +1,7 @@
+"""
+Export module to export csv sample file
+"""
+
 import logging
 import os
 
@@ -5,18 +9,25 @@ from google.cloud import bigquery
 
 from app.config import Config
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def export_sample_data(table_name: str, sample_size: int = 100):
-    """
-    Export sample data from BigQuery to CSV.
+def get_all_tables() -> list:
+    config = Config()
+    client = bigquery.Client(project=config.PROJECT_ID)
 
-    Args:
-        table_name: Name of the table to export
-        sample_size: Number of rows to export
-    """
+    try:
+        tables = client.list_tables(config.DATASET_ID)
+        table_names = [table.table_id for table in tables]
+        logger.info(f"Found {len(table_names)} tables in dataset: {table_names}")
+        return table_names
+    except Exception as e:
+        logger.error(f"Error fetching tables from dataset: {str(e)}")
+        return []
+
+
+def export_sample_data(table_name: str, sample_size: int = 100) -> None:
+    """Export sample data from BigQuery to CSV."""
     config = Config()
     Config.validate()
 
@@ -34,30 +45,32 @@ def export_sample_data(table_name: str, sample_size: int = 100):
     query_job = client.query(query)
     df = query_job.to_dataframe()
 
-    # Create data directory if it doesn't exist
-    data_dir = '/app/data'
+    data_dir = config.DATA_DIR_TO_EXPORT
     os.makedirs(data_dir, exist_ok=True)
 
     output_file = f"{data_dir}/sample_{table_name}.csv"
     df.to_csv(output_file, index=False)
     logger.info(f"Exported {len(df)} rows to {output_file}")
 
-    return df
 
+def export_all_samples() -> None:
+    """Export sample data from all tables in the dataset."""
+    config = Config()
 
-def export_all_samples():
-    """Export sample data from all tables."""
-    tables = ['clinicians', 'practice_locations']
+    # Get all tables dynamically
+    tables = get_all_tables()
 
-    logger.info("Starting export of sample data from BigQuery...")
+    if not tables:
+        logger.warning("No tables found in dataset")
+        return
+
+    logger.info(f"Starting export of sample data from {len(tables)} table(s)...")
+
     for table in tables:
         try:
-            export_sample_data(table)
+            sample_size = getattr(config, 'SAMPLE_SIZE_TO_EXPORT', 100)
+            export_sample_data(table_name=table, sample_size=sample_size)
         except Exception as e:
             logger.error(f"Error exporting {table}: {str(e)}")
 
     logger.info("Export of all samples completed")
-
-
-if __name__ == "__main__":
-    export_all_samples()

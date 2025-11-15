@@ -1,7 +1,6 @@
 """
 Extract module for retrieving data from CMS API.
 Uses the POST API with conditions to fetch data for multiple filter combinations.
-Supports dynamic filters - automatically handles any filter keys and skips empty values.
 """
 
 import logging
@@ -23,13 +22,12 @@ class CmsDataExtractor:
         self.total_records_fetched = 0
 
     def build_filter_combinations(self) -> List[Dict[str, Any]]:
-        """
-        Generate all combinations of filter values.
-        Automatically skips empty/None values and removes empty filters.
+        # Generate combinations of filter values.
+        # Skips empty/None values and removes empty filters.
 
-        Returns:
-            List of filter dictionaries, one for each combination
-        """
+
+        #  Return: List of filter dictionaries, one for each combination
+
         # Clean filters - remove empty values
         clean_filters = {}
         for key, values in self.config.FILTERS.items():

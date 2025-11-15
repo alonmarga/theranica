@@ -12,9 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the entire app folder (not individual files)
 COPY app/ ./app/
 
-# Create data directory for outputs
-RUN mkdir -p /app/data
-
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
