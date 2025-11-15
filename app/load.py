@@ -65,6 +65,10 @@ class BigQueryLoader:
                                      description='Data quality validation flag'),
                 bigquery.SchemaField('ingestion_timestamp', 'TIMESTAMP', mode='REQUIRED',
                                      description='Timestamp when record was ingested'),
+                bigquery.SchemaField('load_id', 'STRING', mode='REQUIRED',
+                                     description='Load batch identifier (YYYYMMDD_HHMMSS)'),
+                bigquery.SchemaField('filter_combination', 'STRING', mode='REQUIRED',
+                                     description='Filter combination used to extract this record (e.g., state=NY + pri_spec=CARDIOLOGY)'),
             ],
             'practice_locations': [
                 bigquery.SchemaField('record_id', 'STRING', mode='REQUIRED',
@@ -99,6 +103,10 @@ class BigQueryLoader:
                                      description='Data quality validation flag'),
                 bigquery.SchemaField('ingestion_timestamp', 'TIMESTAMP', mode='REQUIRED',
                                      description='Timestamp when record was ingested'),
+                bigquery.SchemaField('load_id', 'STRING', mode='REQUIRED',
+                                     description='Load batch identifier (YYYYMMDD_HHMMSS)'),
+                bigquery.SchemaField('filter_combination', 'STRING', mode='REQUIRED',
+                                     description='Filter combination used to extract this record (e.g., state=NY + pri_spec=CARDIOLOGY)'),
             ]
         }
 
@@ -123,7 +131,7 @@ class BigQueryLoader:
         schema = self.get_schema(table_name)
 
         job_config = bigquery.LoadJobConfig(
-            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+            write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
             time_partitioning=bigquery.TimePartitioning(
                 type_=bigquery.TimePartitioningType.DAY,
                 field="ingestion_timestamp"
@@ -139,7 +147,8 @@ class BigQueryLoader:
             load_job.result()
 
             destination_table = self.client.get_table(table_id)
-            logger.info(f"Loaded {destination_table.num_rows} rows to {table_id}")
+            logger.info(f"Loaded {len(df)} rows to {table_id}")
+            logger.info(f"Table now contains {destination_table.num_rows} total rows")
             logger.info(f"Table schema verified with {len(schema)} fields")
 
             # Verify data and log results
@@ -173,7 +182,9 @@ class BigQueryLoader:
             query = f"""
                 SELECT
                     COUNT(*) as total_records,
-                    COUNT(DISTINCT npi) as unique_npis
+                    COUNT(DISTINCT npi) as unique_npis,
+                    COUNT(DISTINCT load_id) as distinct_loads,
+                    COUNT(DISTINCT filter_combination) as distinct_filters
                 FROM `{table_id}`
             """
 

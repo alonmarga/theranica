@@ -25,7 +25,6 @@ class CmsDataExtractor:
         # Generate combinations of filter values.
         # Skips empty/None values and removes empty filters.
 
-
         #  Return: List of filter dictionaries, one for each combination
 
         # Clean filters - remove empty values
@@ -159,6 +158,10 @@ class CmsDataExtractor:
 
                 result = response.json()
                 batch = result.get("results", [])
+
+                # Add filter_combination to each record for data lineage
+                for record in batch:
+                    record['filter_combination'] = filter_name
 
                 # Extract total count from first batch response
                 if total_count is None and "count" in result:

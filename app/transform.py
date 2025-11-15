@@ -68,7 +68,8 @@ class DataTransformer:
             'telephone_number': 'phone',
             'enrollment_status': 'enrollment_status',
             'enrollment_date': 'enrollment_date',
-            'last_update_date': 'last_update_date'
+            'last_update_date': 'last_update_date',
+            'filter_combination': 'filter_combination'  # Keep filter tracking column
         }
 
         existing_columns = {k: v for k, v in column_mapping.items() if k in df.columns}
@@ -84,7 +85,8 @@ class DataTransformer:
 
         string_cols = ['first_name', 'last_name', 'middle_name', 'credentials',
                        'medical_specialty', 'gender', 'organization_name',
-                       'street_address', 'street_address_2', 'city', 'state']
+                       'street_address', 'street_address_2', 'city', 'state',
+                       'filter_combination']
 
         for col in string_cols:
             if col in df.columns:
@@ -167,13 +169,14 @@ class DataTransformer:
 
         clinician_cols = [col for col in [
             'npi', 'first_name', 'last_name', 'middle_name', 'credentials',
-            'medical_specialty', 'gender', 'is_valid_record'
+            'medical_specialty', 'gender', 'is_valid_record', 'filter_combination'
         ] if col in df.columns]
 
         clinicians = df[clinician_cols].drop_duplicates(subset=['npi'], keep='first').copy()
         logger.info("Deduplicating clinicians on: npi")
 
         clinicians['ingestion_timestamp'] = pd.Timestamp.now()
+        clinicians['load_id'] = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
         clinicians['record_id'] = clinicians['npi'].astype(str) + '_' + clinicians.index.astype(str)
 
         valid = (clinicians['is_valid_record'] == True).sum()
@@ -190,7 +193,8 @@ class DataTransformer:
         location_cols = [col for col in [
             'npi', 'state', 'city', 'zip_code', 'street_address', 'street_address_2',
             'phone', 'organization_name', 'enrollment_status', 'enrollment_date',
-            'accepts_medicare', 'accepts_medicaid', 'last_update_date', 'is_valid_record'
+            'accepts_medicare', 'accepts_medicaid', 'last_update_date', 'is_valid_record',
+            'filter_combination'
         ] if col in df.columns]
 
         dedup_cols = [col for col in self.config.DEDUPLICATE_ON if col in df.columns]
@@ -203,6 +207,7 @@ class DataTransformer:
         locations = df[location_cols].drop_duplicates(subset=dedup_cols, keep='first').copy()
 
         locations['ingestion_timestamp'] = pd.Timestamp.now()
+        locations['load_id'] = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
         locations['record_id'] = (
             locations['npi'].astype(str) + '_' +
             locations['state'].astype(str) + '_' +
