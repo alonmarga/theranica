@@ -15,7 +15,6 @@ services:
       - PYTHONDONTWRITEBYTECODE=1
 
     volumes:
-      - ./app/cms-pipeline-9a03af99c351.json:/app/gcp-credentials.json:ro
       - ./data_export:/app/data_export
       - ./logs:/app/logs
 

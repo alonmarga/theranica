@@ -7,7 +7,7 @@ import argparse
 import logging
 import sys
 from datetime import datetime
-
+import os
 from app.config import Config
 from app.extract import CmsDataExtractor
 from app.load import BigQueryLoader
@@ -24,6 +24,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Setup GCP credentials before Config class
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] =Config.setup_gcp_credentials()
 
 class ETLPipeline:
     # Orchestrates the ETL pipeline execution.
