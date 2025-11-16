@@ -1,0 +1,22 @@
+{
+  "npi": "npi",
+  "provider_first_name": "first_name",
+  "provider_last_name": "last_name",
+  "provider_middle_name": "middle_name",
+  "cred": "credentials",
+  "pri_spec": "medical_specialty",
+  "gndr": "gender",
+  "ind_assgn": "accepts_medicare",
+  "grp_assgn": "accepts_medicaid",
+  "facility_name": "organization_name",
+  "adr_ln_1": "street_address",
+  "adr_ln_2": "street_address_2",
+  "citytown": "city",
+  "state": "state",
+  "zip_code": "zip_code",
+  "telephone_number": "phone",
+  "enrollment_status": "enrollment_status",
+  "enrollment_date": "enrollment_date",
+  "last_update_date": "last_update_date",
+  "filter_combination": "filter_combination"
+}

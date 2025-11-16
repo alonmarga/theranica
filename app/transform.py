@@ -5,7 +5,8 @@ T step in ETL/ELT
 
 import logging
 from typing import List, Dict, Any, Tuple
-
+import json
+import os
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -14,8 +15,26 @@ logger = logging.getLogger(__name__)
 class DataTransformer:
     """Class to transforms and cleans CMS clinician data"""
 
+
     def __init__(self, config):
         self.config = config
+        self.column_mapping = self._load_column_mapping()
+
+    def _load_column_mapping(self) -> dict:
+        """Load column mapping from JSON file."""
+        mapping_file = os.path.join(
+            os.path.dirname(__file__),
+            self.config.API_COLUMNS_FILE
+        )
+
+        if not os.path.exists(mapping_file):
+            raise FileNotFoundError(f"Column mapping file not found: {mapping_file}")
+
+        with open(mapping_file, 'r') as f:
+            mapping = json.load(f)
+
+        logger.info(f"Loaded column mapping with {len(mapping)} columns")
+        return mapping
 
     def transform(self, raw_data: List[Dict[str, Any]], include_invalid_records: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
@@ -49,30 +68,11 @@ class DataTransformer:
         # Standardize column names from API format.
         logger.info("Standardizing column names...")
 
-        column_mapping = {
-            'npi': 'npi',
-            'provider_first_name': 'first_name',
-            'provider_last_name': 'last_name',
-            'provider_middle_name': 'middle_name',
-            'cred': 'credentials',
-            'pri_spec': 'medical_specialty',
-            'gndr': 'gender',
-            'ind_assgn': 'accepts_medicare',
-            'grp_assgn': 'accepts_medicaid',
-            'facility_name': 'organization_name',
-            'adr_ln_1': 'street_address',
-            'adr_ln_2': 'street_address_2',
-            'citytown': 'city',
-            'state': 'state',
-            'zip_code': 'zip_code',
-            'telephone_number': 'phone',
-            'enrollment_status': 'enrollment_status',
-            'enrollment_date': 'enrollment_date',
-            'last_update_date': 'last_update_date',
-            'filter_combination': 'filter_combination'  # Keep filter tracking column
+        existing_columns = {
+            k: v for k, v in self.column_mapping.items()
+            if k in df.columns
         }
 
-        existing_columns = {k: v for k, v in column_mapping.items() if k in df.columns}
         df = df.rename(columns=existing_columns)
         df = df[[v for v in existing_columns.values()]]
 
