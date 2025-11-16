@@ -164,7 +164,7 @@ class DataTransformer:
         return df
 
     def _create_clinicians_table(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create the clinicians dimension table"""
+        # Create the clinicians dimension table
         logger.info("Creating clinicians table...")
 
         clinician_cols = [col for col in [
@@ -187,7 +187,7 @@ class DataTransformer:
         return clinicians.reset_index(drop=True)
 
     def _create_locations_table(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create the practice locations table"""
+        # Create the practice locations table
         logger.info("Creating practice locations table...")
 
         location_cols = [col for col in [

@@ -145,9 +145,6 @@ class CmsDataExtractor:
             }
 
             try:
-                logger.debug(f"Fetching batch {batch_number} at offset {offset}")
-                logger.debug(f"Payload: {payload}")
-
                 response = requests.post(
                     self.base_url,
                     json=payload,
