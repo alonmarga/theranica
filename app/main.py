@@ -5,14 +5,15 @@ Main orchestration script for extracting, transforming, and loading data.
 
 import argparse
 import logging
+import os
 import sys
 from datetime import datetime
-import os
+
 from app.config import Config
+from app.export_data import export_all_samples
 from app.extract import CmsDataExtractor
 from app.load import BigQueryLoader
 from app.transform import DataTransformer
-from app.export_data import export_all_samples
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Setup GCP credentials before Config class
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = Config.setup_gcp_credentials()
+
 
 class ETLPipeline:
     # Orchestrates the ETL pipeline execution.
@@ -136,7 +138,6 @@ class ETLPipeline:
             self.end_time = datetime.now()
             duration = (self.end_time - self.start_time).total_seconds()
 
-            # ========== CAPTURE FINAL METRICS ==========
             metrics['status'] = 'success'
             metrics['load_id'] = clinicians_df['load_id'].iloc[0] if len(clinicians_df) > 0 else 'unknown'
 
@@ -145,7 +146,6 @@ class ETLPipeline:
             logger.info(f"Total duration: {duration:.2f} seconds")
             logger.info("*" * 100)
 
-            # ========== LOAD METRICS TO BIGQUERY ==========
             try:
                 metrics['duration_seconds'] = duration
                 self.loader.load_metrics(metrics)
@@ -176,7 +176,7 @@ class ETLPipeline:
             return False
 
     def _export_data(self):
-        """Export sample data from BigQuery to CSV."""
+        # Export sample data from BigQuery to CSV
         try:
             export_all_samples()
             logger.info("Export completed successfully")
@@ -194,6 +194,8 @@ Examples:
   docker compose run cms-etl-pipeline                           # Normal: extract, transform, load
   docker compose run cms-etl-pipeline python -m app.main --with-export          # Full: extract, transform, load, export
   docker compose run cms-etl-pipeline python -m app.main --export-only          # Export only (from existing BigQuery data)
+  docker compose run cms-etl-pipeline python -m app.main --include-invalid                # Include invalid records (is_valid_record=False)
+  docker compose run cms-etl-pipeline python -m app.main --with-export --include-invalid  # Full pipeline with invalid records
         """
     )
     parser.add_argument(

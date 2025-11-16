@@ -24,10 +24,8 @@ class CmsDataExtractor:
     def build_filter_combinations(self) -> List[Dict[str, Any]]:
         # Generate combinations of filter values.
         # Skips empty/None values and removes empty filters.
-
         #  Return: List of filter dictionaries, one for each combination
 
-        # Clean filters - remove empty values
         clean_filters = {}
         for key, values in self.config.FILTERS.items():
             # Filter out empty strings and None values
@@ -42,7 +40,7 @@ class CmsDataExtractor:
             logger.warning("No valid filters found after removing empty values. Will fetch all data.")
             return [{}]  # Return empty dict if no filters
 
-        # Generate all combinations using itertools.product
+        # Generate all combinations
         filter_keys = list(clean_filters.keys())
         filter_values_list = [clean_filters[key] for key in filter_keys]
 
@@ -54,15 +52,7 @@ class CmsDataExtractor:
         return combinations
 
     def build_conditions(self, filter_dict: Dict[str, str]) -> List[Dict[str, Any]]:
-        """
-        Build API conditions from a filter dictionary.
-
-        Args:
-            filter_dict: Dictionary of {property_name: value}
-
-        Returns:
-            List of condition objects for the API
-        """
+        # Build API conditions from a filter dictionary (combinations)
         conditions = []
         for property_name, value in filter_dict.items():
             conditions.append({
@@ -74,12 +64,8 @@ class CmsDataExtractor:
         return conditions
 
     def fetch_all_data(self) -> List[Dict[str, Any]]:
-        """
-        Fetch all data for all filter combinations.
+        # Fetch all data for all filter combinations.
 
-        Returns:
-            Complete list of all records matching all filter combinations
-        """
         all_records = []
         filter_combinations = self.build_filter_combinations()
         total_combinations = len(filter_combinations)
@@ -104,29 +90,20 @@ class CmsDataExtractor:
                 continue
 
         self.total_records_fetched = len(all_records)
-        logger.info(f"\n{'='*60}")
-        logger.info(f"Data extraction complete. Total records fetched: {self.total_records_fetched}")
-        logger.info(f"{'='*60}\n")
+        logger.info(f"\n{'*'*60}")
+        logger.info(f"Extraction completed. Total records fetched: {self.total_records_fetched}")
+        logger.info(f"{'*'*60}\n")
 
         return all_records
 
     def _fetch_for_combination(self, filter_dict: Dict[str, str], filter_name: str) -> List[Dict[str, Any]]:
-        """
-        Fetch all data for a specific filter combination.
-
-        Args:
-            filter_dict: Dictionary of filters for this combination
-            filter_name: Human-readable name for logging
-
-        Returns:
-            List of records for this combination
-        """
+        # Fetch all data for a specific filter combination.
         records = []
         offset = 0
         batch_number = 0
         total_count = None
 
-        # Calculate effective batch size respecting MAX_RECORDS limit
+        # Calculate effective batch size  (MAX_RECORDS limit)
         effective_batch_size = self.config.BATCH_SIZE
         if self.config.MAX_RECORDS and self.config.MAX_RECORDS < self.config.BATCH_SIZE:
             effective_batch_size = self.config.MAX_RECORDS
@@ -135,7 +112,6 @@ class CmsDataExtractor:
         while True:
             batch_number += 1
 
-            # Build conditions from filter dictionary
             conditions = self.build_conditions(filter_dict)
 
             payload = {
@@ -170,7 +146,7 @@ class CmsDataExtractor:
                         logger.info(f"{filter_name}: API total available: {total_count}")
 
                 if not batch:
-                    logger.info(f"{filter_name}: No more records. Pagination complete.")
+                    logger.info(f"{filter_name}: No more records.")
                     break
 
                 records.extend(batch)
@@ -209,9 +185,9 @@ class CmsDataExtractor:
 
         if total_count:
             if len(records) < total_count:
-                logger.info(f"{filter_name}: Extraction complete. Fetched {len(records)} out of {total_count} available records ({(len(records)/total_count)*100:.1f}%)")
+                logger.info(f"{filter_name}: Extraction completed. Fetched {len(records)} out of {total_count} available records ({(len(records)/total_count)*100:.1f}%)")
             else:
-                logger.info(f"{filter_name}: Extraction complete. Fetched all {len(records)} records")
+                logger.info(f"{filter_name}: Extraction completed. Fetched all {len(records)} records")
         else:
             logger.info(f"{filter_name}: Extraction complete. Total records: {len(records)}")
 

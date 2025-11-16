@@ -17,15 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class BigQueryLoader:
-    """
-    Loads data to BigQuery with schemas managed in gcp_schema/ folder.
-
-    Schema Discovery:
-    - Automatically scans gcp_schema/ for JSON files
-    - File naming: {table_name}_schema.json
-    - To add new table: Create new JSON file in gcp_schema/
-    - No code changes needed!
-    """
 
     def __init__(self, config):
         self.config = config
@@ -33,9 +24,7 @@ class BigQueryLoader:
         self.client = bigquery.Client(project=config.PROJECT_ID)
         self.dataset_id = config.DATASET_ID
 
-        # ========== SCHEMA DIRECTORY SETUP ==========
-        # Points to app/gcp_schema/ folder where all schema JSON files are stored
-        self.schema_dir = os.path.join(os.path.dirname(__file__), 'gcp_schemas')
+        self.schema_dir = os.environ.get('SCHEMA_DIR')
 
         # Validate schema directory exists
         if not os.path.exists(self.schema_dir):
@@ -47,12 +36,7 @@ class BigQueryLoader:
         logger.info(f"BigQueryLoader initialized with schema directory: {self.schema_dir}")
 
     def get_available_tables(self) -> list:
-        """
-        Get list of available tables (based on schema files).
 
-        Returns:
-            List of table names (extracted from {table_name}_schema.json files)
-        """
         try:
             schema_files = os.listdir(self.schema_dir)
             tables = []
@@ -66,43 +50,12 @@ class BigQueryLoader:
 
         except Exception as e:
             logger.error(f"Error getting available tables: {str(e)}")
-            return []
+            raise
 
     def load_schema_from_file(self, table_name: str) -> list:
-        """
-        ========== THIS IS WHERE JSON FILES ARE READ ==========
 
-        Load BigQuery schema from a JSON file in gcp_schema/ folder.
-
-        PROCESS:
-        1. Constructs path to JSON file: app/gcp_schema/{table_name}_schema.json
-        2. Checks if file exists
-        3. Uses Google's schema_from_json() to READ the JSON file
-        4. Converts JSON to BigQuery SchemaField objects
-
-        Uses Google's recommended schema_from_json() method.
-
-        Args:
-            table_name: Name of the table (e.g., 'clinicians', 'practice_locations')
-                       Will look for {table_name}_schema.json in gcp_schema/
-
-        Returns:
-            List of bigquery.SchemaField objects (schema for the table)
-
-        Raises:
-            FileNotFoundError: If schema JSON file not found
-
-        Example:
-            schema = loader.load_schema_from_file('clinicians')
-            # Reads from: app/gcp_schema/clinicians_schema.json
-            # Returns: [SchemaField('record_id', 'STRING', ...), SchemaField('npi', 'INTEGER', ...), ...]
-        """
-
-        # ========== BUILD PATH TO JSON FILE ==========
-        # Example: /app/gcp_schema/clinicians_schema.json
         schema_file = os.path.join(self.schema_dir, f'{table_name}_schema.json')
 
-        # ========== CHECK IF FILE EXISTS ==========
         if not os.path.exists(schema_file):
             available = self.get_available_tables()
             raise FileNotFoundError(
@@ -114,18 +67,6 @@ class BigQueryLoader:
         logger.info(f"Loading schema from: {schema_file}")
 
         try:
-            # ========== READ JSON FILE AND CONVERT TO SCHEMA ==========
-            # THIS IS THE KEY LINE - READS THE JSON FILE
-            # self.client.schema_from_json() is Google BigQuery's method to read JSON schema files
-            #
-            # The JSON file format is:
-            # [
-            #   {"name": "field1", "type": "STRING", "mode": "REQUIRED", "description": "..."},
-            #   {"name": "field2", "type": "INTEGER", "mode": "NULLABLE", "description": "..."},
-            #   ...
-            # ]
-            #
-            # schema_from_json converts this JSON into BigQuery SchemaField objects
             schema = self.client.schema_from_json(schema_file)
 
             logger.info(f"Loaded schema for '{table_name}': {len(schema)} fields")
@@ -153,28 +94,12 @@ class BigQueryLoader:
             logger.error(f"Error creating dataset: {str(e)}")
             raise
 
-    def load_data(self, df: pd.DataFrame, table_name: str,
-                  description: str = '') -> str:
-        """
-        Load a DataFrame to BigQuery.
+    def load_data(self, df: pd.DataFrame, table_name: str, description: str = '') -> str:
 
-        Schema is automatically loaded from gcp_schema/{table_name}_schema.json
-
-        Args:
-            df: DataFrame to load
-            table_name: Target table name (also name of schema file without _schema.json)
-            description: Table description for metadata
-
-        Returns:
-            Full table ID (project.dataset.table)
-        """
         logger.info(f"Loading data to table: {table_name}")
 
         table_id = f"{self.config.PROJECT_ID}.{self.dataset_id}.{table_name}"
 
-        # ========== THIS CALLS THE METHOD ABOVE TO READ JSON FILES ==========
-        # Dynamically load schema for this table from gcp_schema/ folder
-        # This internally calls load_schema_from_file() which reads the JSON
         schema = self.load_schema_from_file(table_name)
 
         job_config = bigquery.LoadJobConfig(
@@ -196,7 +121,6 @@ class BigQueryLoader:
             destination_table = self.client.get_table(table_id)
             logger.info(f"Loaded {len(df)} rows to {table_id}")
             logger.info(f"Table now contains {destination_table.num_rows} total rows")
-            logger.info(f"Table schema verified with {len(schema)} fields")
 
             # Verify data and log results
             try:
@@ -215,40 +139,14 @@ class BigQueryLoader:
             raise
 
     def load_metrics(self, metrics: Dict[str, Any]) -> str:
-        """
-        ========== LOG ETL PROCESS METRICS TO BIGQUERY ==========
 
-        Load ETL process metrics and statistics to etl_processes table.
-        This creates an audit trail of every ETL run with key metrics.
-
-        Args:
-            metrics: Dictionary with ETL metrics:
-                - run_timestamp: When the run started
-                - process_name: Name of the process
-                - filters_applied: Filters used
-                - records_extracted: Total records extracted
-                - clinicians_records: Records in clinicians table
-                - locations_records: Records in locations table
-                - valid_records: Records that passed validation
-                - invalid_records: Records that failed validation
-                - status: success/failed/partial
-                - duration_seconds: Execution time
-                - error_message: Error if failed
-                - load_id: Batch identifier
-                - include_invalid: Whether invalid records included
-
-        Returns:
-            Full table ID (project.dataset.table)
-        """
         logger.info("Loading ETL process metrics to etl_processes table")
-
-        # Create a DataFrame with the metrics (one row)
         metrics_df = pd.DataFrame([metrics])
 
         table_id = f"{self.config.PROJECT_ID}.{self.dataset_id}.etl_processes"
 
-        # Load schema for etl_processes table
-        schema = self.load_schema_from_file('etl_processes')
+
+        self.load_schema_from_file('etl_processes')
 
         job_config = bigquery.LoadJobConfig(
             write_disposition=bigquery.WriteDisposition.WRITE_APPEND
@@ -278,7 +176,6 @@ class BigQueryLoader:
         table_id = f"{self.config.PROJECT_ID}.{self.dataset_id}.{table_name}"
 
         try:
-            # Get table info
             table = self.client.get_table(table_id)
 
             # Run sample query

@@ -23,11 +23,11 @@ def get_all_tables() -> list:
         return table_names
     except Exception as e:
         logger.error(f"Error fetching tables from dataset: {str(e)}")
-        return []
+        raise
 
 
-def export_sample_data(table_name: str, sample_size: int = 100) -> None:
-    """Export sample data from BigQuery to CSV."""
+def export_sample_data(table_name: str, sample_size: int) -> None:
+    # Export sample data from BigQuery to CSV files
     config = Config()
     Config.validate()
 
@@ -54,24 +54,25 @@ def export_sample_data(table_name: str, sample_size: int = 100) -> None:
 
 
 def export_all_samples() -> None:
-    """Export sample data from all tables in the dataset."""
+    # Export sample data from all tables in the dataset
     config = Config()
 
-    # Get all tables dynamically
     tables = get_all_tables()
 
     if not tables:
         logger.warning("No tables found in dataset")
-        return
+        raise RuntimeError(
+            f"No tables found in dataset {config.DATASET_ID}. "
+            "Cannot export data. Check if ETL pipeline completed successfully."
+        )
 
-    # Exclude etl_processes table from export
     tables_to_export = [t for t in tables if t != 'etl_processes']
 
     logger.info(f"Starting export of sample data from {len(tables_to_export)} table(s)...")
 
     for table in tables_to_export:
         try:
-            sample_size = getattr(config, 'SAMPLE_SIZE_TO_EXPORT', 100)
+            sample_size = getattr(config, 'SAMPLE_SIZE_TO_EXPORT')
             export_sample_data(table_name=table, sample_size=sample_size)
         except Exception as e:
             logger.error(f"Error exporting {table}: {str(e)}")

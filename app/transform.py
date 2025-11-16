@@ -46,7 +46,7 @@ class DataTransformer:
         return clinicians_df, locations_df
 
     def _standardize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Standardize column names from API format."""
+        # Standardize column names from API format.
         logger.info("Standardizing column names...")
 
         column_mapping = {
