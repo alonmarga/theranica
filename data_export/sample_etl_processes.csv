@@ -1,0 +1,2 @@
+run_timestamp,process_name,filters_applied,records_extracted,clinicians_records,locations_records,valid_records,invalid_records,status,error_message,include_invalid,load_id,duration_seconds
+2025-11-16 17:16:53.699906,CMS_PROVIDERS_ETL,"{'state': ['NY', 'TX'], 'pri_spec': ['Neurology', 'INTERNAL MEDICINE']}",6000,3029,5244,3029,0,success,,False,20251116_171724,44.670672

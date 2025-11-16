@@ -25,16 +25,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Setup GCP credentials before Config class
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] =Config.setup_gcp_credentials()
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = Config.setup_gcp_credentials()
 
 class ETLPipeline:
     # Orchestrates the ETL pipeline execution.
 
     def __init__(self, config: Config):
         self.config = config
-        self.extractor = CmsDataExtractor(config) # Get data from API
-        self.transformer = DataTransformer(config) # Transform and validate
-        self.loader = BigQueryLoader(config) # Load to BQ
+        self.extractor = CmsDataExtractor(config)
+        self.transformer = DataTransformer(config)
+        self.loader = BigQueryLoader(config)
         self.start_time = None
         self.end_time = None
 
@@ -45,9 +45,25 @@ class ETLPipeline:
         Args:
             with_export: Run ETL and then export to CSV
             export_only: Only export from BigQuery (no ETL)
+            include_invalid: Include invalid records in load
         """
         try:
             self.start_time = datetime.now()
+
+            # ========== CAPTURE METRICS FOR LOGGING ==========
+            metrics = {
+                'run_timestamp': self.start_time,
+                'process_name': 'CMS_PROVIDERS_ETL',
+                'filters_applied': str(self.config.FILTERS),
+                'records_extracted': 0,
+                'clinicians_records': 0,
+                'locations_records': 0,
+                'valid_records': 0,
+                'invalid_records': 0,
+                'status': 'failed',
+                'error_message': None,
+                'include_invalid': include_invalid,
+            }
 
             # Export only mode
             if export_only:
@@ -74,16 +90,26 @@ class ETLPipeline:
             raw_data = self.extractor.fetch_all_data()
             logger.info(f"Extracted {len(raw_data)} records from API")
 
+            metrics['records_extracted'] = len(raw_data)
+
             if not raw_data:
                 logger.warning("No data extracted. Pipeline terminated.")
+                metrics['status'] = 'failed'
+                metrics['error_message'] = 'No data extracted from API'
                 return False
 
             # STEP 2: Transform
-            logger.info("PHASE 2: Transforming and cleaning data...")
+            logger.info("STEP 2: Transforming and cleaning data...")
             clinicians_df, locations_df = self.transformer.transform(
                 raw_data,
                 include_invalid_records=include_invalid
             )
+
+            # ========== CAPTURE TRANSFORMATION METRICS ==========
+            metrics['clinicians_records'] = len(clinicians_df)
+            metrics['locations_records'] = len(locations_df)
+            metrics['valid_records'] = len(clinicians_df[clinicians_df['is_valid_record'] == True])
+            metrics['invalid_records'] = len(clinicians_df[clinicians_df['is_valid_record'] == False])
 
             # STEP 3: Load
             logger.info("STEP 3: Loading data to BigQuery...")
@@ -110,15 +136,43 @@ class ETLPipeline:
             self.end_time = datetime.now()
             duration = (self.end_time - self.start_time).total_seconds()
 
+            # ========== CAPTURE FINAL METRICS ==========
+            metrics['status'] = 'success'
+            metrics['load_id'] = clinicians_df['load_id'].iloc[0] if len(clinicians_df) > 0 else 'unknown'
+
             logger.info("*" * 100)
             logger.info("Pipeline Completed Successfully")
             logger.info(f"Total duration: {duration:.2f} seconds")
+            logger.info("*" * 100)
+
+            # ========== LOAD METRICS TO BIGQUERY ==========
+            try:
+                metrics['duration_seconds'] = duration
+                self.loader.load_metrics(metrics)
+                logger.info("ETL process metrics logged to etl_processes table")
+            except Exception as e:
+                logger.warning(f"Could not log metrics to BigQuery: {str(e)}")
 
             return True
 
         except Exception as e:
             logger.error(f"Pipeline failed with error: {str(e)}", exc_info=True)
             self.end_time = datetime.now()
+            duration = (self.end_time - self.start_time).total_seconds()
+
+            # ========== CAPTURE ERROR METRICS ==========
+            metrics['status'] = 'failed'
+            metrics['error_message'] = str(e)
+            metrics['duration_seconds'] = duration
+            metrics['load_id'] = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+            # Try to log the failure
+            try:
+                self.loader.load_metrics(metrics)
+                logger.info("ETL failure metrics logged to etl_processes table")
+            except Exception as log_error:
+                logger.warning(f"Could not log failure metrics: {str(log_error)}")
+
             return False
 
     def _export_data(self):
@@ -137,9 +191,9 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  docker compose up                           # Normal: extract, transform, load
-  docker compose up -- --with-export          # Full: extract, transform, load, export
-  docker compose up -- --export-only          # Export only (from existing BigQuery data)
+  docker compose run cms-etl-pipeline                           # Normal: extract, transform, load
+  docker compose run cms-etl-pipeline python -m app.main --with-export          # Full: extract, transform, load, export
+  docker compose run cms-etl-pipeline python -m app.main --export-only          # Export only (from existing BigQuery data)
         """
     )
     parser.add_argument(
