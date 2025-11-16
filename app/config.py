@@ -51,6 +51,9 @@ class Config:
     SAMPLE_SIZE_TO_EXPORT: str = os.environ.get('SAMPLE_SIZE_TO_EXPORT') or "100"
     DATA_DIR_TO_EXPORT: str = f'/app/{os.environ.get("DATA_DIR_TO_EXPORT", "data_export")}'
     API_COLUMNS_FILE:str = os.environ.get('API_COLUMNS_FILE') or 'api_columns.json'
+    GCP_SCHEMAS_DIR:str = os.environ.get('GCP_SCHEMAS_DIR') or 'gcp_schemas'
+    SCHEMAS_AND_COLUMNS_MAPPING_DIR: str =os.environ.get('SCHEMAS_AND_COLUMNS_MAPPING_DIR') or 'schemas_and_columns_mapping'
+
 
     @classmethod
     def validate(cls):

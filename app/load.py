@@ -24,7 +24,12 @@ class BigQueryLoader:
         self.client = bigquery.Client(project=config.PROJECT_ID)
         self.dataset_id = config.DATASET_ID
 
-        self.schema_dir = os.environ.get('SCHEMA_DIR')
+
+        self.schema_dir = os.path.join(
+            os.path.dirname(__file__),
+            self.config.SCHEMAS_AND_COLUMNS_MAPPING_DIR,
+            self.config.GCP_SCHEMAS_DIR
+        )
 
         # Validate schema directory exists
         if not os.path.exists(self.schema_dir):

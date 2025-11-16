@@ -24,6 +24,7 @@ class DataTransformer:
         """Load column mapping from JSON file."""
         mapping_file = os.path.join(
             os.path.dirname(__file__),
+            self.config.SCHEMAS_AND_COLUMNS_MAPPING_DIR,
             self.config.API_COLUMNS_FILE
         )
 
