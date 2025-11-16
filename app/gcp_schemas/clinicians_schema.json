@@ -1,0 +1,74 @@
+[
+  {
+    "name": "record_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique record identifier"
+  },
+  {
+    "name": "npi",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "National Provider Identifier"
+  },
+  {
+    "name": "first_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider first name"
+  },
+  {
+    "name": "last_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider last name"
+  },
+  {
+    "name": "middle_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider middle name"
+  },
+  {
+    "name": "credentials",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider credentials (MD, DO, DDS, etc.)"
+  },
+  {
+    "name": "medical_specialty",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Primary medical specialty"
+  },
+  {
+    "name": "gender",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider gender (M/F)"
+  },
+  {
+    "name": "is_valid_record",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Data quality validation flag"
+  },
+  {
+    "name": "ingestion_timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when record was ingested"
+  },
+  {
+    "name": "load_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Load batch identifier (YYYYMMDD_HHMMSS)"
+  },
+  {
+    "name": "filter_combination",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Filter combination used to extract this record"
+  }
+]

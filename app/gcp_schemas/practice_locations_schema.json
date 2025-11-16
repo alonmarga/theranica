@@ -1,0 +1,110 @@
+[
+  {
+    "name": "record_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique record identifier"
+  },
+  {
+    "name": "npi",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "National Provider Identifier"
+  },
+  {
+    "name": "state",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "State code (2-letter abbreviation)"
+  },
+  {
+    "name": "city",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "City"
+  },
+  {
+    "name": "zip_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Zip code (5 or 9-digit format)"
+  },
+  {
+    "name": "street_address",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Primary street address"
+  },
+  {
+    "name": "street_address_2",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Secondary street address (suite, apt, etc.)"
+  },
+  {
+    "name": "phone",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Contact phone number"
+  },
+  {
+    "name": "organization_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Organization/practice name"
+  },
+  {
+    "name": "enrollment_status",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Current enrollment status"
+  },
+  {
+    "name": "enrollment_date",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Date of enrollment with CMS"
+  },
+  {
+    "name": "accepts_medicare",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Whether provider accepts Medicare"
+  },
+  {
+    "name": "accepts_medicaid",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Whether provider accepts Medicaid"
+  },
+  {
+    "name": "last_update_date",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Date of last update from CMS"
+  },
+  {
+    "name": "is_valid_record",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Data quality validation flag"
+  },
+  {
+    "name": "ingestion_timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when record was ingested"
+  },
+  {
+    "name": "load_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Load batch identifier (YYYYMMDD_HHMMSS)"
+  },
+  {
+    "name": "filter_combination",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Filter combination used to extract this record"
+  }
+]

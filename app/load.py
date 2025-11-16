@@ -1,9 +1,10 @@
 """
 Load module for writing data to BigQuery.
-Handles schema definition, table creation, and data loading.
+Schemas are auto-discovered from gcp_schema/ folder - add new tables by adding new JSON files.
 """
 
 import logging
+import os
 from typing import Dict, Any
 
 import pandas as pd
@@ -15,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 class BigQueryLoader:
-    # Class handling loading to BQ
 
     def __init__(self, config):
         self.config = config
@@ -23,8 +23,59 @@ class BigQueryLoader:
         self.client = bigquery.Client(project=config.PROJECT_ID)
         self.dataset_id = config.DATASET_ID
 
+        self.schema_dir = os.path.join(os.path.dirname(__file__), 'gcp_schemas')
+
+        if not os.path.exists(self.schema_dir):
+            raise FileNotFoundError(
+                f"Schema directory not found: {self.schema_dir}. "
+                f"Please create app/gcp_schema/ folder with schema JSON files."
+            )
+
+        logger.info(f"BigQueryLoader initialized with schema directory: {self.schema_dir}")
+
+    def get_available_tables(self) -> list:
+
+        try:
+            schema_files = os.listdir(self.schema_dir)
+            tables = []
+
+            for file in schema_files:
+                if file.endswith('_schema.json'):
+                    table_name = file.replace('_schema.json', '')
+                    tables.append(table_name)
+
+            return sorted(tables)
+
+        except Exception as e:
+            logger.error(f"Error getting available tables: {str(e)}")
+            return []
+
+    def load_schema_from_file(self, table_name: str) -> list:
+
+        schema_file = os.path.join(self.schema_dir, f'{table_name}_schema.json')
+
+        if not os.path.exists(schema_file):
+            available = self.get_available_tables()
+            raise FileNotFoundError(
+                f"Schema file not found: {schema_file}\n"
+                f"Available tables: {available}\n"
+                f"To add a new table: Create {os.path.basename(schema_file)} in {self.schema_dir}/"
+            )
+
+        logger.info(f"Loading schema from: {schema_file}")
+
+        try:
+            schema = self.client.schema_from_json(schema_file)
+
+            logger.info(f"Loaded schema for '{table_name}': {len(schema)} fields")
+            return schema
+
+        except Exception as e:
+            logger.error(f"Error loading schema from {schema_file}: {str(e)}")
+            raise
+
     def create_dataset(self):
-        # Create BigQuery dataset if it doesn't exist
+
         logger.info(f"Creating or verifying dataset: {self.dataset_id}")
 
         dataset_id_full = f"{self.config.PROJECT_ID}.{self.dataset_id}"
@@ -41,94 +92,14 @@ class BigQueryLoader:
             logger.error(f"Error creating dataset: {str(e)}")
             raise
 
-    def get_schema(self, table_name: str) -> list:
-        # Get BigQuery schema for the specified table
-        schemas = {
-            'clinicians': [
-                bigquery.SchemaField('record_id', 'STRING', mode='REQUIRED',
-                                     description='Unique record identifier'),
-                bigquery.SchemaField('npi', 'INTEGER', mode='REQUIRED',
-                                     description='National Provider Identifier'),
-                bigquery.SchemaField('first_name', 'STRING', mode='NULLABLE',
-                                     description='Provider first name'),
-                bigquery.SchemaField('last_name', 'STRING', mode='NULLABLE',
-                                     description='Provider last name'),
-                bigquery.SchemaField('middle_name', 'STRING', mode='NULLABLE',
-                                     description='Provider middle name'),
-                bigquery.SchemaField('credentials', 'STRING', mode='NULLABLE',
-                                     description='Provider credentials (MD, DO, DDS, etc.)'),
-                bigquery.SchemaField('medical_specialty', 'STRING', mode='NULLABLE',
-                                     description='Primary medical specialty'),
-                bigquery.SchemaField('gender', 'STRING', mode='NULLABLE',
-                                     description='Provider gender (M/F)'),
-                bigquery.SchemaField('is_valid_record', 'BOOLEAN', mode='NULLABLE',
-                                     description='Data quality validation flag'),
-                bigquery.SchemaField('ingestion_timestamp', 'TIMESTAMP', mode='REQUIRED',
-                                     description='Timestamp when record was ingested'),
-                bigquery.SchemaField('load_id', 'STRING', mode='REQUIRED',
-                                     description='Load batch identifier (YYYYMMDD_HHMMSS)'),
-                bigquery.SchemaField('filter_combination', 'STRING', mode='REQUIRED',
-                                     description='Filter combination used to extract this record (e.g., state=NY + pri_spec=CARDIOLOGY)'),
-            ],
-            'practice_locations': [
-                bigquery.SchemaField('record_id', 'STRING', mode='REQUIRED',
-                                     description='Unique record identifier'),
-                bigquery.SchemaField('npi', 'INTEGER', mode='REQUIRED',
-                                     description='National Provider Identifier'),
-                bigquery.SchemaField('state', 'STRING', mode='REQUIRED',
-                                     description='State code (2-letter abbreviation)'),
-                bigquery.SchemaField('city', 'STRING', mode='NULLABLE',
-                                     description='City'),
-                bigquery.SchemaField('zip_code', 'STRING', mode='NULLABLE',
-                                     description='Zip code (5 or 9-digit format)'),
-                bigquery.SchemaField('street_address', 'STRING', mode='NULLABLE',
-                                     description='Primary street address'),
-                bigquery.SchemaField('street_address_2', 'STRING', mode='NULLABLE',
-                                     description='Secondary street address (suite, apt, etc.)'),
-                bigquery.SchemaField('phone', 'STRING', mode='NULLABLE',
-                                     description='Contact phone number'),
-                bigquery.SchemaField('organization_name', 'STRING', mode='NULLABLE',
-                                     description='Organization/practice name'),
-                bigquery.SchemaField('enrollment_status', 'STRING', mode='NULLABLE',
-                                     description='Current enrollment status'),
-                bigquery.SchemaField('enrollment_date', 'DATE', mode='NULLABLE',
-                                     description='Date of enrollment with CMS'),
-                bigquery.SchemaField('accepts_medicare', 'BOOLEAN', mode='NULLABLE',
-                                     description='Whether provider accepts Medicare'),
-                bigquery.SchemaField('accepts_medicaid', 'BOOLEAN', mode='NULLABLE',
-                                     description='Whether provider accepts Medicaid'),
-                bigquery.SchemaField('last_update_date', 'DATE', mode='NULLABLE',
-                                     description='Date of last update from CMS'),
-                bigquery.SchemaField('is_valid_record', 'BOOLEAN', mode='NULLABLE',
-                                     description='Data quality validation flag'),
-                bigquery.SchemaField('ingestion_timestamp', 'TIMESTAMP', mode='REQUIRED',
-                                     description='Timestamp when record was ingested'),
-                bigquery.SchemaField('load_id', 'STRING', mode='REQUIRED',
-                                     description='Load batch identifier (YYYYMMDD_HHMMSS)'),
-                bigquery.SchemaField('filter_combination', 'STRING', mode='REQUIRED',
-                                     description='Filter combination used to extract this record (e.g., state=NY + pri_spec=CARDIOLOGY)'),
-            ]
-        }
-
-        return schemas.get(table_name, [])
-
     def load_data(self, df: pd.DataFrame, table_name: str,
                   description: str = '') -> str:
-        """
-        Load a DataFrame to BigQuery.
 
-        Args:
-            df: DataFrame to load
-            table_name: Target table name
-            description: Table description for metadata
-
-        Returns:
-            Full table ID (project.dataset.table)
-        """
         logger.info(f"Loading data to table: {table_name}")
 
         table_id = f"{self.config.PROJECT_ID}.{self.dataset_id}.{table_name}"
-        schema = self.get_schema(table_name)
+
+        schema = self.load_schema_from_file(table_name)
 
         job_config = bigquery.LoadJobConfig(
             write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
@@ -151,13 +122,11 @@ class BigQueryLoader:
             logger.info(f"Table now contains {destination_table.num_rows} total rows")
             logger.info(f"Table schema verified with {len(schema)} fields")
 
-            # Verify data and log results
             try:
                 verification = self.verify_data(table_name)
                 logger.info(f"Data verification successful: {verification['query_results']}")
             except Exception as verify_error:
                 logger.warning(f"Data verification warning (non-critical): {str(verify_error)}")
-                # Don't fail the pipeline if verification fails, just warn
 
             return table_id
 
@@ -169,16 +138,14 @@ class BigQueryLoader:
             raise
 
     def verify_data(self, table_name: str) -> Dict[str, Any]:
-        # Verify loaded data and return simple statistics
+        # Verify loaded data and return statistics
         logger.info(f"Verifying data in table: {table_name}")
 
         table_id = f"{self.config.PROJECT_ID}.{self.dataset_id}.{table_name}"
 
         try:
-            # Get table info
             table = self.client.get_table(table_id)
 
-            # Run sample query
             query = f"""
                 SELECT
                     COUNT(*) as total_records,
