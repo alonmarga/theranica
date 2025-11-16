@@ -9,16 +9,16 @@ logger = logging.getLogger(__name__)
 
 
 class Config:
-    base_url: str = os.environ['BASE_URL']
+    base_url: str = os.environ.get('BASE_URL')
 
     # Filter settings
     FILTERS: dict = {
-        "state": [s.strip().upper() for s in os.environ['STATES'].split(',')],
-        "pri_spec": [s.strip() for s in os.environ['SPECIALTIES'].split(',')]
+        "state": [s.strip().upper() for s in os.environ.get('STATES').split(',')],
+        "pri_spec": [s.strip() for s in os.environ.get('SPECIALTIES').split(',')]
     }
 
     # Pagination settings
-    BATCH_SIZE: int = int(os.environ.get('BATCH_SIZE', '1000'))
+    BATCH_SIZE: int = int(os.environ.get('BATCH_SIZE') or 1000)
 
     # Handle MAX_RECORDS - can be None or an integer
     _max_records_env: str = os.environ.get('MAX_RECORDS', '').strip()
@@ -31,24 +31,24 @@ class Config:
         MAX_RECORDS = None
 
     # GCP Configuration
-    PROJECT_ID: str = os.environ["GCP_PROJECT_ID"]
-    DATASET_ID: str = os.environ["DATASET_ID"]
-    DATASET_LOCATION: str = os.environ['DATASET_LOCATION']
+    PROJECT_ID: str = os.environ.get("GCP_PROJECT_ID")
+    DATASET_ID: str = os.environ.get("DATASET_ID")
+    DATASET_LOCATION: str = os.environ.get('DATASET_LOCATION')
     DATASET_DESCRIPTION: str = "Theranica ETL home assignment for DE"
 
     # BigQuery table names
-    CLINICIANS_TABLE: list = os.environ['CLINICIANS_TABLE']
-    LOCATIONS_TABLE: list = os.environ['LOCATIONS_TABLE']
+    CLINICIANS_TABLE: str = os.environ.get('CLINICIANS_TABLE')
+    LOCATIONS_TABLE: str = os.environ.get('LOCATIONS_TABLE')
 
     # Data quality settings
-    DEDUPLICATE_ON: list = [s.strip() for s in os.environ['DEDUPLICATE_ON'].split(',')]
+    DEDUPLICATE_ON: list = [s.strip() for s in os.environ.get('DEDUPLICATE_ON').split(',')]
     VALIDATION_RULES: dict = {
         "npi": "must be numeric and 10 digits",
         "state": "must be 2-letter state code",
         "zip_code": "must be 5 digits or XXXXX-XXXX format"
     }
 
-    SAMPLE_SIZE_TO_EXPORT: str = os.environ['SAMPLE_SIZE_TO_EXPORT']
+    SAMPLE_SIZE_TO_EXPORT: str = os.environ.get('SAMPLE_SIZE_TO_EXPORT') or "100"
     DATA_DIR_TO_EXPORT: str = f'/app/{os.environ.get("DATA_DIR_TO_EXPORT", "data_export")}'
 
     @classmethod
