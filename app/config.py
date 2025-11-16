@@ -18,7 +18,7 @@ class Config:
     }
 
     # Pagination settings
-    BATCH_SIZE: int = int(os.environ['BATCH_SIZE'])
+    BATCH_SIZE: int = int(os.environ.get('BATCH_SIZE', '1000'))
 
     # Handle MAX_RECORDS - can be None or an integer
     _max_records_env: str = os.environ.get('MAX_RECORDS', '').strip()
