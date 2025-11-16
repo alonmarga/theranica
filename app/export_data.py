@@ -64,9 +64,12 @@ def export_all_samples() -> None:
         logger.warning("No tables found in dataset")
         return
 
-    logger.info(f"Starting export of sample data from {len(tables)} table(s)...")
+    # Exclude etl_processes table from export
+    tables_to_export = [t for t in tables if t != 'etl_processes']
 
-    for table in tables:
+    logger.info(f"Starting export of sample data from {len(tables_to_export)} table(s)...")
+
+    for table in tables_to_export:
         try:
             sample_size = getattr(config, 'SAMPLE_SIZE_TO_EXPORT', 100)
             export_sample_data(table_name=table, sample_size=sample_size)
