@@ -1,7 +1,7 @@
 """
 Config file to set in one central place ETL configuration
 """
-
+import json
 import logging
 import os
 
@@ -11,11 +11,18 @@ logger = logging.getLogger(__name__)
 class Config:
     base_url: str = os.environ.get('BASE_URL')
 
-    # Filter settings
-    FILTERS: dict = {
-        "state": [s.strip().upper() for s in os.environ.get('STATES').split(',')],
-        "pri_spec": [s.strip() for s in os.environ.get('SPECIALTIES').split(',')]
-    }
+    # # Filter settings
+    # FILTERS: dict = {
+    #     "state": [s.strip().upper() for s in os.environ.get('STATES').split(',')],
+    #     "pri_spec": [s.strip() for s in os.environ.get('SPECIALTIES').split(',')]
+    # }
+
+    _filters_str = os.environ.get('FILTERS', '{}')
+    try:
+        FILTERS = json.loads(_filters_str)
+    except json.JSONDecodeError:
+        raise ValueError(f"Invalid JSON in FILTERS: {_filters_str}")
+
 
     # Pagination settings
     BATCH_SIZE: int = int(os.environ.get('BATCH_SIZE') or 1000)
