@@ -1,7 +1,6 @@
 """
 Load module for writing data to BigQuery.
 Handles schema definition loading from gcp_schema/ folder JSON files, table creation, and data loading.
-Schemas are auto-discovered from gcp_schema/ folder - add new tables by adding new JSON files.
 """
 import json
 import logging
@@ -62,11 +61,9 @@ class BigQueryLoader:
         schema_file = os.path.join(self.schema_dir, f'{table_name}_schema.json')
 
         if not os.path.exists(schema_file):
-            available = self.get_available_tables()
+            self.get_available_tables()
             raise FileNotFoundError(
-                f"Schema file not found: {schema_file}\n"
-                f"Available tables: {available}\n"
-                f"To add a new table: Create {os.path.basename(schema_file)} in {self.schema_dir}/"
+                f"Schema file not found: {schema_file}"
             )
 
         logger.info(f"Loading schema from: {schema_file}")
@@ -105,7 +102,7 @@ class BigQueryLoader:
 
         table_id = f"{self.config.PROJECT_ID}.{self.dataset_id}.{table_name}"
 
-        schema = self.load_schema_from_file(table_name)
+        self.load_schema_from_file(table_name)
 
         job_config = bigquery.LoadJobConfig(
             write_disposition=bigquery.WriteDisposition.WRITE_APPEND,

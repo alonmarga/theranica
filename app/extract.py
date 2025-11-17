@@ -89,8 +89,7 @@ class CmsDataExtractor:
                 logger.error(f"Failed to fetch {filter_name}: {str(e)}")
                 continue
 
-        self.total_records_fetched = len(all_records)
-        logger.info(f"\n{'*'*60}")
+        logger.info(f"{'*'*60}")
         logger.info(f"Extraction completed. Total records fetched: {self.total_records_fetched}")
         logger.info(f"{'*'*60}\n")
 

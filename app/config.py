@@ -11,12 +11,7 @@ logger = logging.getLogger(__name__)
 class Config:
     base_url: str = os.environ.get('BASE_URL')
 
-    # # Filter settings
-    # FILTERS: dict = {
-    #     "state": [s.strip().upper() for s in os.environ.get('STATES').split(',')],
-    #     "pri_spec": [s.strip() for s in os.environ.get('SPECIALTIES').split(',')]
-    # }
-
+    # Filter settings
     _filters_str = os.environ.get('FILTERS', '{}')
     try:
         FILTERS = json.loads(_filters_str)
@@ -42,7 +37,7 @@ class Config:
     DATASET_ID: str = os.environ.get("DATASET_ID")
     DATASET_LOCATION: str = os.environ.get('DATASET_LOCATION')
     DATASET_DESCRIPTION: str = "Theranica ETL home assignment for DE"
-    GCS_BUCKET = os.environ.get('GCS_BUCKET')  # NEW
+    GCS_BUCKET = os.environ.get('GCS_BUCKET')
 
     # BigQuery table names
     CLINICIANS_TABLE: str = os.environ.get('CLINICIANS_TABLE')

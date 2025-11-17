@@ -63,7 +63,6 @@ def export_all_samples() -> None:
         logger.warning("No tables found in dataset")
         raise RuntimeError(
             f"No tables found in dataset {config.DATASET_ID}. "
-            "Cannot export data. Check if ETL pipeline completed successfully."
         )
 
     tables_to_export = [t for t in tables if t != 'etl_processes']

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class DataTransformer:
-    """Class to transforms and cleans CMS clinician data"""
+    # Class to transforms and cleans CMS clinician data
 
 
     def __init__(self, config):
@@ -21,7 +21,6 @@ class DataTransformer:
         self.column_mapping = self._load_column_mapping()
 
     def _load_column_mapping(self) -> dict:
-        """Load column mapping from JSON file."""
         mapping_file = os.path.join(
             os.path.dirname(__file__),
             self.config.SCHEMAS_AND_COLUMNS_MAPPING_DIR,
@@ -38,16 +37,8 @@ class DataTransformer:
         return mapping
 
     def transform(self, raw_data: List[Dict[str, Any]], include_invalid_records: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Main transformation pipeline.
+        # Main transformation pipeline.
 
-        Args:
-            raw_data: Raw records from CMS API
-            include_invalid_records: If True, keep invalid records for testing
-
-        Returns:
-            Tuple of (clinicians_df, locations_df)
-        """
         logger.info("Starting data transformation...")
 
         df = pd.DataFrame(raw_data)
@@ -118,7 +109,6 @@ class DataTransformer:
         return df
 
     def _validate_data_quality(self, df: pd.DataFrame, include_invalid_records: bool = False) -> pd.DataFrame:
-        """Add validation fields based on config VALIDATION_RULES."""
         logger.info("Validating data quality...")
         logger.info(f"Applying validation rules: {self.config.VALIDATION_RULES}")
 
@@ -145,7 +135,7 @@ class DataTransformer:
             elif field == 'zip_code':
                 invalid_mask = ~(
                     df['zip_code'].str.match(r'^\d{5}$', na=False) |
-                    df['zip_code'].str.match(r'^\d{9}$', na=False) |  # 9-digit (CMS format)
+                    # df['zip_code'].str.match(r'^\d{9}$', na=False) |
                     df['zip_code'].str.match(r'^\d{5}-\d{4}$', na=False)
                 )
 

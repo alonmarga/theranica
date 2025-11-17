@@ -7,7 +7,6 @@ import argparse
 import logging
 import os
 import sys
-import pandas as pd
 from datetime import datetime
 
 from app.config import Config
@@ -31,7 +30,7 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = Config.setup_gcp_credentials()
 
 
 class ETLPipeline:
-    """Orchestrates the ETL pipeline execution."""
+    # Orchestrates the ETL pipeline execution
 
     def __init__(self, config: Config):
         self.config = config
@@ -44,20 +43,17 @@ class ETLPipeline:
 
     def run(self, with_export=False, export_only=False, include_invalid=False,
             upload_raw=False):
-        """
-        Execute ETL pipeline.
 
-        Args:
-            with_export: Run ETL and then export to CSV
-            export_only: Only export from BigQuery (no ETL)
-            include_invalid: Include invalid records in load
-            upload_raw: Upload raw API data to Cloud Storage
-        """
+        # with_export: Run ETL and then export to CSV
+        # export_only: Only export from BigQuery (no ETL)
+        # include_invalid: Include invalid records in load
+        # upload_raw: Upload raw API data to Cloud Storage
+
         try:
             self.start_time = datetime.now()
             self.load_id = self.start_time.strftime('%Y%m%d_%H%M%S')
 
-            # ========== CAPTURE METRICS FOR LOGGING ==========
+            # Metric for logging in etl_processes table
             metrics = {
                 'run_timestamp': self.start_time,
                 'process_name': 'CMS_PROVIDERS_ETL',
@@ -86,7 +82,7 @@ class ETLPipeline:
                 logger.info(f"Total duration: {duration:.2f} seconds")
                 return True
 
-            # Normal ETL mode
+            # Normal ETL mode, no other flags
             logger.info("*" * 100)
             logger.info("Starting CMS ETL Pipeline")
             logger.info(f"Load ID: {self.load_id}")
@@ -102,18 +98,19 @@ class ETLPipeline:
 
             metrics['records_extracted'] = len(raw_data)
 
+            # No data found (filters for example)
             if not raw_data:
                 logger.warning("No data extracted. Pipeline terminated.")
                 metrics['status'] = 'failed'
                 metrics['error_message'] = 'No data extracted from API'
                 return False
 
-            # STEP 1.5: Upload raw data to GCS (optional)
+            # STEP 1.1: Upload raw data to GCS
             if upload_raw:
                 logger.info("STEP 1.5: Uploading raw data to Cloud Storage...")
                 try:
                     gcs_path = self.loader.upload_raw_data_to_gcs(raw_data, self.load_id)
-                    logger.info(f"✓ Raw data uploaded to: {gcs_path}")
+                    logger.info(f"Raw data uploaded to: {gcs_path}")
                     metrics['raw_data_gcs_path'] = gcs_path
                 except Exception as e:
                     logger.error(f"Failed to upload raw data to GCS: {str(e)}")
@@ -126,7 +123,7 @@ class ETLPipeline:
                 include_invalid_records=include_invalid
             )
 
-            # ========== CAPTURE TRANSFORMATION METRICS ==========
+            # transformation metrics
             metrics['clinicians_records'] = len(clinicians_df)
             metrics['locations_records'] = len(locations_df)
             metrics['valid_records'] = len(clinicians_df[clinicians_df['is_valid_record'] == True])
@@ -149,7 +146,7 @@ class ETLPipeline:
             logger.info(f"Clinicians table: {clinicians_table_id}")
             logger.info(f"Locations table: {locations_table_id}")
 
-            # STEP 4: Export (optional)
+            # STEP 4: Export sample (optional)
             if with_export:
                 logger.info("STEP 4: Exporting data to CSV...")
                 self._export_data()
@@ -179,7 +176,7 @@ class ETLPipeline:
             self.end_time = datetime.now()
             duration = (self.end_time - self.start_time).total_seconds()
 
-            # ========== CAPTURE ERROR METRICS ==========
+            # error metrics
             metrics['status'] = 'failed'
             metrics['error_message'] = str(e)
             metrics['duration_seconds'] = duration
@@ -195,7 +192,7 @@ class ETLPipeline:
             return False
 
     def _export_data(self):
-        """Export sample data from BigQuery to CSV."""
+        # Export sample data from BigQuery to CSV
         try:
             export_all_samples()
             logger.info("Export completed successfully")
@@ -209,30 +206,29 @@ if __name__ == "__main__":
         description='CMS ETL Pipeline',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
   docker compose run cms-etl-pipeline
-    → Normal: extract, transform, load
+    - Normal: extract, transform, load
 
   docker compose run cms-etl-pipeline python -m app.main --upload-raw
-    → Extract, upload raw to GCS, transform, load
+    - Extract, upload raw to GCS, transform, load
 
   docker compose run cms-etl-pipeline python -m app.main --with-export
-    → Full: extract, transform, load, export
+    - Full: extract, transform, load, export sample
 
   docker compose run cms-etl-pipeline python -m app.main --upload-raw --with-export
-    → Extract, upload raw, transform, load, export
+    - Extract, upload raw, transform, load raw data, export
 
   docker compose run cms-etl-pipeline python -m app.main --export-only
-    → Export only (no ETL)
+    - Export only (no ETL)
 
   docker compose run cms-etl-pipeline python -m app.main --include-invalid
-    → Include invalid records (is_valid_record=False)
+    - Include invalid records (is_valid_record=False)
 
   docker compose run cms-etl-pipeline python -m app.main --upload-raw --include-invalid
-    → Upload raw + include invalid records
+    - Upload raw + include invalid records
 
   docker compose run cms-etl-pipeline python -m app.main --upload-raw --with-export --include-invalid
-    → Full pipeline with raw upload, export, and invalid records
+    - Full pipeline with raw upload, export, and invalid records
         """
     )
     parser.add_argument(
