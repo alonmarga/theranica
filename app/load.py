@@ -3,14 +3,14 @@ Load module for writing data to BigQuery.
 Handles schema definition loading from gcp_schema/ folder JSON files, table creation, and data loading.
 Schemas are auto-discovered from gcp_schema/ folder - add new tables by adding new JSON files.
 """
-
+import json
 import logging
 import os
 from typing import Dict, Any
 
 import pandas as pd
 from google.api_core.exceptions import Conflict
-from google.cloud import bigquery
+from google.cloud import bigquery, storage
 from google.cloud.exceptions import GoogleCloudError
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class BigQueryLoader:
         config.validate()
         self.client = bigquery.Client(project=config.PROJECT_ID)
         self.dataset_id = config.DATASET_ID
-
+        self.storage_client = storage.Client(project=config.PROJECT_ID)  # ADD THIS
 
         self.schema_dir = os.path.join(
             os.path.dirname(__file__),
@@ -150,7 +150,6 @@ class BigQueryLoader:
 
         table_id = f"{self.config.PROJECT_ID}.{self.dataset_id}.etl_processes"
 
-
         self.load_schema_from_file('etl_processes')
 
         job_config = bigquery.LoadJobConfig(
@@ -166,7 +165,8 @@ class BigQueryLoader:
             load_job.result()
 
             logger.info(f"Loaded metrics to {table_id}")
-            logger.info(f"Process: {metrics.get('process_name')}, Status: {metrics.get('status')}, Duration: {metrics.get('duration_seconds'):.2f}s")
+            logger.info(
+                f"Process: {metrics.get('process_name')}, Status: {metrics.get('status')}, Duration: {metrics.get('duration_seconds'):.2f}s")
 
             return table_id
 
@@ -213,4 +213,37 @@ class BigQueryLoader:
 
         except Exception as e:
             logger.error(f"Error verifying table {table_id}: {str(e)}")
+            raise
+
+    def upload_raw_data_to_gcs(self, raw_data: list, load_id: str) -> str:
+
+        bucket_name = self.config.GCS_BUCKET
+        date_part = load_id[:8]  # YYYYMMDD
+        time_part = load_id[9:]  # HHMMSS
+
+        blob_path = f"raw_data/{date_part}/data_{time_part}.json"
+
+        try:
+            bucket = self.storage_client.bucket(bucket_name)
+            blob = bucket.blob(blob_path)
+
+            for record in raw_data:
+                record['load_id'] = load_id
+
+            # Cloud storage structure
+            ndjson_data = '\n'.join([json.dumps(record) for record in raw_data])
+
+            blob.upload_from_string(
+                ndjson_data,
+                content_type='application/x-ndjson'
+            )
+
+            logger.info(
+                f"Uploaded raw data ({len(raw_data)} records) to "
+                f"gs://{bucket_name}/{blob_path}"
+            )
+            return blob_path
+
+        except Exception as e:
+            logger.error(f"Error uploading raw data to GCS: {str(e)}")
             raise

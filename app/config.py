@@ -35,6 +35,7 @@ class Config:
     DATASET_ID: str = os.environ.get("DATASET_ID")
     DATASET_LOCATION: str = os.environ.get('DATASET_LOCATION')
     DATASET_DESCRIPTION: str = "Theranica ETL home assignment for DE"
+    GCS_BUCKET = os.environ.get('GCS_BUCKET')  # NEW
 
     # BigQuery table names
     CLINICIANS_TABLE: str = os.environ.get('CLINICIANS_TABLE')

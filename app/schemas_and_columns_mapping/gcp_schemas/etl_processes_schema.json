@@ -2,8 +2,8 @@
   {
     "name": "run_id",
     "type": "STRING",
-    "mode": "REQUIRED",
-    "description": "Unique identifier for this ETL run"
+    "mode": "NULLABLE",
+    "description": "Unique run identifier (YYYYMMDD_HHMMSS)"
   },
   {
     "name": "run_timestamp",
@@ -15,72 +15,84 @@
     "name": "process_name",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Name of the ETL process (e.g., CMS_PROVIDERS_ETL)"
+    "description": "Name of the process (e.g., CMS_PROVIDERS_ETL)"
   },
   {
     "name": "filters_applied",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Filter values used (states, specialties)"
+    "description": "Filters used for extraction as JSON string"
   },
   {
     "name": "records_extracted",
     "type": "INTEGER",
-    "mode": "REQUIRED",
-    "description": "Total records extracted from API"
+    "mode": "NULLABLE",
+    "description": "Number of records extracted from API"
   },
   {
     "name": "clinicians_records",
     "type": "INTEGER",
-    "mode": "REQUIRED",
-    "description": "Records loaded to clinicians table"
+    "mode": "NULLABLE",
+    "description": "Number of clinician records loaded"
   },
   {
     "name": "locations_records",
     "type": "INTEGER",
-    "mode": "REQUIRED",
-    "description": "Records loaded to practice_locations table"
+    "mode": "NULLABLE",
+    "description": "Number of location records loaded"
   },
   {
     "name": "valid_records",
     "type": "INTEGER",
-    "mode": "REQUIRED",
-    "description": "Records that passed validation (is_valid_record=TRUE)"
+    "mode": "NULLABLE",
+    "description": "Number of valid records"
   },
   {
     "name": "invalid_records",
     "type": "INTEGER",
-    "mode": "REQUIRED",
-    "description": "Records that failed validation (is_valid_record=FALSE)"
+    "mode": "NULLABLE",
+    "description": "Number of invalid records"
   },
   {
     "name": "status",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Pipeline status (success, failed, partial)"
-  },
-  {
-    "name": "duration_seconds",
-    "type": "FLOAT64",
-    "mode": "REQUIRED",
-    "description": "Total execution time in seconds"
+    "description": "ETL status: success, failed, error"
   },
   {
     "name": "error_message",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Error message if process failed"
+    "description": "Error message if status is failed"
+  },
+  {
+    "name": "duration_seconds",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Total pipeline duration in seconds"
   },
   {
     "name": "load_id",
     "type": "STRING",
-    "mode": "REQUIRED",
-    "description": "Load batch identifier (matches data tables)"
+    "mode": "NULLABLE",
+    "description": "Load batch identifier (YYYYMMDD_HHMMSS)"
   },
   {
     "name": "include_invalid",
     "type": "BOOLEAN",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "description": "Whether invalid records were included in load"
+  },
+  {
+    "name": "upload_raw",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Whether raw data was uploaded to Cloud Storage"
+  },
+  {
+    "name": "raw_data_gcs_path",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "GCS path where raw data was uploaded"
   }
 ]
