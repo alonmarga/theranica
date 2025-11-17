@@ -171,6 +171,12 @@ END
 - One row per run with: timestamp, records extracted/loaded, validation counts, status, duration, error messages, filters used
 - Allows monitoring pipeline health and history
 
+
+
+## Cloud Storage
+
+When using the --upload-raw flag, raw API responses are archived to Cloud Storage as NDJSON files organized by date. This provides compliance documentation and enables data recovery if BigQuery tables are modified or corrupted.
+
 ---
 
 ## Entry Point
